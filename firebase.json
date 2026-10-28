@@ -1,0 +1,42 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs18",
+    "predeploy": [
+      "npm --prefix \"$RESOURCE_DIR/..\" run build:function-engine"
+    ]
+  },
+  "hosting": {
+    "public": "dist",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/api/v1/payments/vpos/initiate",
+        "function": "initiateVpos"
+      },
+      {
+        "source": "/api/v1/payments/vpos/callback",
+        "function": "vposCallback"
+      },
+      {
+        "source": "/api/v1/compliance/contract-approvals",
+        "function": "recordContractApprovals"
+      },
+      {
+        "source": "/api/v1/integrations/order-commission",
+        "function": "handleOrderCommission"
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

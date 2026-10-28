@@ -1,0 +1,6 @@
+{
+  "name": "Nefis Mertebeleri Monoline & Komisyon Motoru",
+  "description": "Global Tek Hat (Monoline) ağ mimarisi, 7 Nefis Mertebesi kariyer sistemi ve gerçek zamanlı sipariş komisyon dağıtım (Webhook & API) platformu.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
