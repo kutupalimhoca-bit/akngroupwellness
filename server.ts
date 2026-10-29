@@ -18,6 +18,7 @@ import {
   getRegionWalletKey,
   resolveMemberRegion,
 } from './src/utils/walletRegion';
+import { applySystemPoolTransfer, getSystemPoolUsdBalances, SystemPoolTransferError } from './src/utils/systemPoolTransfer';
 import {
   getPayoutChannelForRegion,
   getRejectedWithdrawalRefund,
@@ -50,6 +51,9 @@ import {
   PackageId,
   RANK_UP_REWARDS_BY_CAREER,
   SystemDistributionParameters,
+  SystemPoolCurrency,
+  SystemPoolTransactionRecord,
+  SystemPoolTransferType,
   SystemStateResponse,
   SystemWalletRecord,
   TaxRefundInvoiceRecord,
@@ -197,9 +201,12 @@ let ordersLog: OrderLogRecord[] = [];
 let systemWallet: SystemWalletRecord = {
   id: 1,
   system_pool_balance: 0,
+  system_pool_domestic_usd: 0,
+  system_pool_international_usd: 0,
   unclaimed_pool_balance: 0,
   updated_at: new Date().toISOString(),
 };
+let systemPoolTransactions: SystemPoolTransactionRecord[] = [];
 let unclaimedCommissions: UnclaimedCommissionRecord[] = [];
 let queueJobs: BullMqJobRecord[] = [];
 let v2ArchitectureConfig: V2ArchitectureConfig = {
@@ -243,6 +250,7 @@ let nextFraudAlertId = 1;
 let nextFomoAlertId = 1;
 let nextP2PTransferId = 1;
 let nextWalletTransactionId = 1;
+let nextSystemPoolTransactionId = 1;
 let nextVoucherId = 1;
 
 // V2.1 Anti-Fraud IP 24h Activity Tracker
@@ -781,6 +789,46 @@ function addSystemPoolBalance(amount: number) {
   if (members[0]) {
     members[0].wallets.system_fund_balance = systemCareerFundBalance;
   }
+}
+
+function recordSystemPoolMovement(params: {
+  type: 'ORDER_SHARE' | 'UNCLAIMED_SHARE' | 'ORDER_REFUND';
+  direction: 'CREDIT' | 'DEBIT';
+  region: MemberRegion;
+  amountUsd: number;
+  orderId: string;
+  sourceUserId: string;
+  sourceUserName: string;
+  createdAt: string;
+  description: string;
+}) {
+  const poolKey = params.region === 'DOMESTIC' ? 'system_pool_domestic_usd' : 'system_pool_international_usd';
+  const currency: SystemPoolCurrency = params.region === 'DOMESTIC' ? 'DOMESTIC_USD' : 'INTERNATIONAL_USD';
+  const balanceBefore = systemWallet[poolKey] ?? 0;
+  const amountUsd = params.direction === 'DEBIT' ? Math.min(balanceBefore, params.amountUsd) : params.amountUsd;
+  if (amountUsd <= 0) return null;
+  const balanceAfter = params.direction === 'CREDIT'
+    ? roundCurrency(balanceBefore + amountUsd)
+    : roundCurrency(balanceBefore - amountUsd);
+  const transaction: SystemPoolTransactionRecord = {
+    id: nextSystemPoolTransactionId++,
+    direction: params.direction,
+    type: params.type,
+    currency,
+    region: params.region,
+    amount_usd: amountUsd,
+    balance_before_usd: balanceBefore,
+    balance_after_usd: balanceAfter,
+    order_id: params.orderId,
+    source_user_id: params.sourceUserId,
+    source_user_name: params.sourceUserName,
+    description: params.description,
+    created_at: params.createdAt,
+  };
+  systemWallet[poolKey] = balanceAfter;
+  systemWallet.updated_at = params.createdAt;
+  systemPoolTransactions.unshift(transaction);
+  return transaction;
 }
 
 // Section 3B: logComm(client, orderId, sourceId, targetId, type, depth, amount, status, releaseAt)
@@ -1343,9 +1391,33 @@ function processOrderCommission(payload: OrderCommissionPayload): CommissionTran
 
   // 4. Sistem fonu aktarımı
   const systemFundBase = commissionPlan.baseSystemFund;
+  const systemFundBaseUsd = toUsdForRegion(systemFundBase, buyerRegion);
+  const systemFundUnclaimedUsd = toUsdForRegion(unclaimedOverflow, buyerRegion);
   systemWallet.system_pool_balance = roundCurrency(
     systemWallet.system_pool_balance + systemFundBase
   );
+  recordSystemPoolMovement({
+    type: 'ORDER_SHARE',
+    direction: 'CREDIT',
+    region: buyerRegion,
+    amountUsd: systemFundBaseUsd,
+    orderId,
+    sourceUserId: buyer.user_id,
+    sourceUserName: buyer.full_name,
+    createdAt: nowIso,
+    description: `Sipariş ${orderId} · %${SYSTEM_FUND_PERCENT} sistem havuzu payı`,
+  });
+  recordSystemPoolMovement({
+    type: 'UNCLAIMED_SHARE',
+    direction: 'CREDIT',
+    region: buyerRegion,
+    amountUsd: systemFundUnclaimedUsd,
+    orderId,
+    sourceUserId: buyer.user_id,
+    sourceUserName: buyer.full_name,
+    createdAt: nowIso,
+    description: `Sipariş ${orderId} · bayilere aktarılamayan payın havuza devri`,
+  });
   logComm(
     orderId,
     buyer,
@@ -1812,6 +1884,9 @@ function processOrderCommission(payload: OrderCommissionPayload): CommissionTran
     fraud_flagged: isFraudFlagged,
     fraud_reason: fraudReason,
     system_fund_base_amount: systemFundBase,
+    system_fund_base_amount_usd: systemFundBaseUsd,
+    system_fund_unclaimed_overflow_usd: systemFundUnclaimedUsd,
+    system_fund_region: buyerRegion,
     system_fund_unclaimed_overflow: unclaimedOverflow,
     system_fund_total_added: totalAddedToFund,
     direct_sponsor: {
@@ -1894,9 +1969,12 @@ function resetToCleanSlate(includeAdmin = true) {
   commissionLogs = [];
   ordersLog = [];
   walletTransactions = [];
+  systemPoolTransactions = [];
   systemWallet = {
     id: 1,
     system_pool_balance: 0,
+    system_pool_domestic_usd: 0,
+    system_pool_international_usd: 0,
     unclaimed_pool_balance: 0,
     updated_at: new Date().toISOString(),
   };
@@ -1918,6 +1996,7 @@ function resetToCleanSlate(includeAdmin = true) {
   nextUnclaimedCommissionId = 1;
   nextWithdrawalId = 1;
   nextWalletTransactionId = 1;
+  nextSystemPoolTransactionId = 1;
   nextActivityLogId = 1;
   nextRewardLogId = 1;
   nextNotificationId = 1;
@@ -4084,12 +4163,107 @@ async function startServer() {
       data: {
         total_users: members.length,
         global_monoline_length: members.length,
+        ...(() => {
+          const pool = getSystemPoolUsdBalances(systemWallet);
+          return {
+            system_pool_balance_usd: pool.total,
+            system_pool_domestic_usd: pool.domestic,
+            system_pool_international_usd: pool.international,
+          };
+        })(),
         system_fund_balance: systemCareerFundBalance,
         system_fund_cumulative: systemCareerFundCumulative,
         pending_withdrawal_requests_count: pendingCount,
         idempotent_duplicate_orders_blocked: idempotentBlockedCount,
       },
     });
+  });
+
+  app.get('/api/v1/admin/system-pool', requireAdminJwt, (_req, res) => {
+    const balances = getSystemPoolUsdBalances(systemWallet);
+    res.json({
+      status: 'success',
+      data: {
+        system_pool_balance_usd: balances.total,
+        system_pool_domestic_usd: balances.domestic,
+        system_pool_international_usd: balances.international,
+        legacy_balance_not_distributable: systemWallet.system_pool_balance,
+        transactions: systemPoolTransactions.slice(0, 500),
+      },
+    });
+  });
+
+  app.post('/api/v1/admin/system-pool/transfer', requireAdminJwt, async (req, res) => {
+    const targetUserId = String(req.body?.target_user_id ?? '').trim();
+    const amountUsd = Number(req.body?.amount);
+    const currency = req.body?.currency;
+    const transferType = req.body?.transfer_type;
+    const description = String(req.body?.description ?? '').trim();
+    const requestId = String(req.body?.request_id ?? '').trim();
+    const validCurrencies: SystemPoolCurrency[] = ['DOMESTIC_USD', 'INTERNATIONAL_USD'];
+    const validTypes: SystemPoolTransferType[] = ['BONUS', 'GIFT', 'PROMOTION', 'MANUAL_ADJUSTMENT'];
+
+    if (!targetUserId || !validCurrencies.includes(currency) || !validTypes.includes(transferType)) {
+      res.status(400).json({ status: 'error', code: 'INVALID_SYSTEM_POOL_TRANSFER', message: 'Bayi, para birimi ve işlem türünü kontrol edin.' });
+      return;
+    }
+    if (!requestId || requestId.length > 100 || !description || description.length > 300) {
+      res.status(400).json({ status: 'error', code: 'INVALID_SYSTEM_POOL_TRANSFER', message: 'İstek kimliği ve en fazla 300 karakterlik açıklama zorunludur.' });
+      return;
+    }
+    if (systemPoolTransactions.some((transaction) => transaction.request_id === requestId)) {
+      res.status(409).json({ status: 'error', code: 'DUPLICATE_SYSTEM_POOL_REQUEST', message: 'Bu havuz aktarım isteği daha önce işlendi.' });
+      return;
+    }
+
+    try {
+      const result = await runInAtomicTransaction(() => {
+        if (systemPoolTransactions.some((transaction) => transaction.request_id === requestId)) {
+          const error: any = new Error('Bu havuz aktarım isteği daha önce işlendi.');
+          error.statusCode = 409;
+          error.code = 'DUPLICATE_SYSTEM_POOL_REQUEST';
+          throw error;
+        }
+        const member = members.find((entry) => entry.user_id === targetUserId && entry.user_id !== 'USR-ADMIN');
+        if (!member) {
+          const error: any = new Error('Bayi bulunamadı.');
+          error.statusCode = 404;
+          error.code = 'SYSTEM_POOL_TARGET_NOT_FOUND';
+          throw error;
+        }
+        const transfer = applySystemPoolTransfer({
+          systemWallet,
+          member,
+          walletTransactions,
+          systemPoolTransactions,
+          amountUsd,
+          currency,
+          transferType,
+          description,
+          adminUid: res.locals.adminUid,
+          requestId,
+          walletTransactionId: nextWalletTransactionId,
+          systemPoolTransactionId: nextSystemPoolTransactionId,
+          transactionId: `WLT-${randomBytes(10).toString('hex').toUpperCase()}`,
+          createdAt: new Date().toISOString(),
+        });
+        nextWalletTransactionId++;
+        nextSystemPoolTransactionId++;
+        return { member, ...transfer };
+      });
+      res.status(201).json({
+        status: 'success',
+        message: `$${amountUsd.toFixed(2)} USD havuzdan ${result.member.full_name} bayinin cüzdanına aktarıldı.`,
+        data: result,
+      });
+    } catch (error: any) {
+      const transferError = error instanceof SystemPoolTransferError ? error : null;
+      res.status(error.statusCode || transferError?.statusCode || 400).json({
+        status: 'error',
+        code: error.code || transferError?.code || 'SYSTEM_POOL_TRANSFER_FAILED',
+        message: error.message || 'Havuz aktarımı tamamlanamadı.',
+      });
+    }
   });
 
   // 2. GET /api/v1/admin/withdrawals
@@ -6083,6 +6257,24 @@ async function startServer() {
         0,
         roundCurrency(systemWallet.system_pool_balance - tx.system_fund_base_amount)
       );
+      const refundRegion = tx.system_fund_region ?? resolveMemberRegion(buyer?.country_code);
+      const refundAmountUsd = roundCurrency(
+        (tx.system_fund_base_amount_usd ?? toUsdForRegion(tx.system_fund_base_amount, refundRegion)) +
+        (tx.system_fund_unclaimed_overflow_usd ?? toUsdForRegion(tx.system_fund_unclaimed_overflow, refundRegion))
+      );
+      if (buyer) {
+        recordSystemPoolMovement({
+          type: 'ORDER_REFUND',
+          direction: 'DEBIT',
+          region: refundRegion,
+          amountUsd: refundAmountUsd,
+          orderId: tx.order_id,
+          sourceUserId: buyer.user_id,
+          sourceUserName: buyer.full_name,
+          createdAt: nowIso,
+          description: `Sipariş ${tx.order_id} · %${SYSTEM_FUND_PERCENT} sistem havuzu payı iadesi`,
+        });
+      }
       systemWallet.unclaimed_pool_balance = Math.max(
         0,
         roundCurrency(systemWallet.unclaimed_pool_balance - tx.system_fund_unclaimed_overflow)
@@ -8141,7 +8333,11 @@ async function startServer() {
     systemCareerFundBalance = 0;
     systemCareerFundCumulative = 0;
     systemWallet.system_pool_balance = 0;
+    systemWallet.system_pool_domestic_usd = 0;
+    systemWallet.system_pool_international_usd = 0;
     systemWallet.unclaimed_pool_balance = 0;
+    systemPoolTransactions = [];
+    nextSystemPoolTransactionId = 1;
     members.forEach((m) => {
       m.wallets.wallet_domestic_usd = 0;
       m.wallets.wallet_international_usd = 0;
@@ -8178,6 +8374,7 @@ async function startServer() {
         commissionLogs,
         ordersLog,
         systemWallet,
+        systemPoolTransactions,
         distributionParams,
         careerTiers,
         withdrawalRequests,
@@ -8223,6 +8420,10 @@ async function startServer() {
       }
       if (payload.systemWallet) {
         systemWallet = payload.systemWallet;
+      }
+      if (Array.isArray(payload.systemPoolTransactions)) {
+        systemPoolTransactions = payload.systemPoolTransactions;
+        nextSystemPoolTransactionId = systemPoolTransactions.reduce((max, transaction) => Math.max(max, transaction.id), 0) + 1;
       }
       if (payload.distributionParams) {
         distributionParams = {

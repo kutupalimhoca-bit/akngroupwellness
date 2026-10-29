@@ -58,6 +58,7 @@ import {
   PACKAGES,
   PackageId,
   SystemDistributionParameters,
+  SystemPoolTransactionRecord,
   SystemWalletRecord,
   TaxRefundInvoiceRecord,
   UserRewardRecord,
@@ -76,6 +77,7 @@ export type AdminConsoleSection =
   | 'params'
   | 'strategic_growth'
   | 'finance'
+  | 'system_pool'
   | 'tax_refunds'
   | 'webhooks_sql'
   | 'rest_api'
@@ -357,6 +359,24 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
     type: 'success' | 'error';
     text: string;
   } | null>(null);
+  const [systemPoolData, setSystemPoolData] = useState<{
+    system_pool_balance_usd: number;
+    system_pool_domestic_usd: number;
+    system_pool_international_usd: number;
+    legacy_balance_not_distributable: number;
+    transactions: SystemPoolTransactionRecord[];
+  } | null>(null);
+  const [systemPoolLoading, setSystemPoolLoading] = useState(false);
+  const [systemPoolBusy, setSystemPoolBusy] = useState(false);
+  const [systemPoolSearch, setSystemPoolSearch] = useState('');
+  const [systemPoolTargetUserId, setSystemPoolTargetUserId] = useState('');
+  const [systemPoolAmount, setSystemPoolAmount] = useState('');
+  const [systemPoolCurrency, setSystemPoolCurrency] = useState<'DOMESTIC_USD' | 'INTERNATIONAL_USD'>('DOMESTIC_USD');
+  const [systemPoolTransferType, setSystemPoolTransferType] = useState<'BONUS' | 'GIFT' | 'PROMOTION' | 'MANUAL_ADJUSTMENT'>('BONUS');
+  const [systemPoolDescription, setSystemPoolDescription] = useState('');
+  const [systemPoolFeedback, setSystemPoolFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showSystemPoolTransferModal, setShowSystemPoolTransferModal] = useState(false);
+  const [showSystemPoolHistory, setShowSystemPoolHistory] = useState(true);
 
   // 💬 Bayi Şikayetler & Öneriler Yönetim Paneli State'leri
   const [ticketSearch, setTicketSearch] = useState<string>('');
@@ -685,7 +705,73 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
   }, [careerTiers]);
 
   const sortedMembers = [...members].sort((a, b) => a.global_line_id - b.global_line_id);
-  const systemPoolBalance = systemWallet?.system_pool_balance ?? 0;
+  const systemPoolDomesticBalance = systemPoolData?.system_pool_domestic_usd ?? systemWallet?.system_pool_domestic_usd ?? 0;
+  const systemPoolInternationalBalance = systemPoolData?.system_pool_international_usd ?? systemWallet?.system_pool_international_usd ?? 0;
+  const systemPoolBalance = systemPoolData?.system_pool_balance_usd ?? systemPoolDomesticBalance + systemPoolInternationalBalance;
+  const systemPoolTransferTargets = sortedMembers.filter((member) => {
+    if (member.user_id === 'USR-ADMIN') return false;
+    const query = systemPoolSearch.trim().toLocaleLowerCase('tr-TR');
+    return !query || [member.user_id, member.full_name, member.email].some((value) => value.toLocaleLowerCase('tr-TR').includes(query));
+  });
+
+  const loadSystemPool = async () => {
+    setSystemPoolLoading(true);
+    try {
+      const response = await fetch('/api/v1/admin/system-pool');
+      const result = await response.json();
+      if (!response.ok || result.status !== 'success') throw new Error(result.message || 'Havuz bilgisi alınamadı.');
+      setSystemPoolData(result.data);
+    } catch (error) {
+      setSystemPoolFeedback({ type: 'error', text: error instanceof Error ? error.message : 'Havuz bilgisi alınamadı.' });
+    } finally {
+      setSystemPoolLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (adminSection === 'system_pool' || adminSection === 'bonuses' || adminSection === 'finance') {
+      void loadSystemPool();
+    }
+  }, [adminSection]);
+
+  const handleSystemPoolTransfer = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const target = members.find((member) => member.user_id === systemPoolTargetUserId);
+    const amount = Number(systemPoolAmount);
+    if (!target || !Number.isFinite(amount) || amount <= 0 || !systemPoolDescription.trim()) {
+      setSystemPoolFeedback({ type: 'error', text: 'Bayi, geçerli tutar ve açıklama alanlarını doldurun.' });
+      return;
+    }
+    if (!window.confirm('Bu havuz aktarımı geri alınamaz. Devam etmek istiyor musunuz?')) return;
+    setSystemPoolBusy(true);
+    setSystemPoolFeedback(null);
+    try {
+      const response = await fetch('/api/v1/admin/system-pool/transfer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target_user_id: target.user_id,
+          amount,
+          currency: systemPoolCurrency,
+          transfer_type: systemPoolTransferType,
+          description: systemPoolDescription.trim(),
+          request_id: crypto.randomUUID(),
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.status !== 'success') throw new Error(result.message || 'Havuz aktarımı yapılamadı.');
+      setSystemPoolFeedback({ type: 'success', text: result.message });
+      setSystemPoolAmount('');
+      setSystemPoolDescription('');
+      setShowSystemPoolTransferModal(false);
+      await loadSystemPool();
+      if (onRefreshState) await onRefreshState();
+    } catch (error) {
+      setSystemPoolFeedback({ type: 'error', text: error instanceof Error ? error.message : 'Havuz aktarımı yapılamadı.' });
+    } finally {
+      setSystemPoolBusy(false);
+    }
+  };
 
   React.useEffect(() => {
     if (adminSection !== 'params') return;
@@ -1225,6 +1311,18 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
           </button>
           <button
             type="button"
+            onClick={() => setAdminSection('system_pool')}
+            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
+              adminSection === 'system_pool'
+                ? 'bg-cyan-700 text-white shadow-xs'
+                : 'bg-cyan-100 text-cyan-950 hover:bg-cyan-200 border border-cyan-300'
+            }`}
+          >
+            <Coins className="w-3.5 h-3.5" />
+            <span>Sistem Havuzu (%5)</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setAdminSection('tax_refunds')}
             className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
               adminSection === 'tax_refunds'
@@ -1307,6 +1405,151 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
           </button>
         </div>
       </div>
+
+      {adminSection === 'system_pool' && (
+        <section className="space-y-6">
+          <div className="rounded-2xl bg-gradient-to-br from-cyan-950 via-slate-900 to-emerald-950 p-6 text-white shadow-lg">
+            <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/30 bg-emerald-300/10 px-3 py-1 text-xs font-bold text-emerald-200">
+                  <Coins className="h-4 w-4" />
+                  SİSTEM HAVUZU (%5)
+                </div>
+                <h2 className="mt-3 text-2xl font-black">Sistem Havuzu Bakiyesi</h2>
+                <p className="mt-1 max-w-2xl text-sm text-cyan-100/80">
+                  Siparişlerden ve uygun olmayan bayi paylarından biriken, bölgesel USD cüzdanlarında tutulan dağıtılabilir bakiye.
+                </p>
+                <p className="mt-2 text-xs text-amber-200" title="Siparişlerden ve kilitli/pasif bayilerden aktarılan %5 pay">
+                  Siparişlerin %5 sistem payı ve havuza yönlendirilen uygun olmayan bayi payları.
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="font-mono text-3xl font-black tabular-nums">
+                  {systemPoolLoading ? 'Yükleniyor…' : `$${systemPoolBalance.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`}
+                </div>
+                <div className="mt-2 flex flex-wrap justify-end gap-3 text-xs text-cyan-100">
+                  <span>Yurt içi ${systemPoolDomesticBalance.toFixed(2)}</span>
+                  <span>Yurt dışı ${systemPoolInternationalBalance.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+            {systemPoolData && systemPoolData.legacy_balance_not_distributable > 0 && (
+              <div className="mt-4 rounded-xl border border-amber-300/30 bg-amber-300/10 p-3 text-xs text-amber-100">
+                Eski, para birimi ayrıştırılmamış kayıt (${systemPoolData.legacy_balance_not_distributable.toFixed(2)}; para birimi belirsiz) güvenli bölgesel USD kaydı olmadığı için dağıtılabilir bakiyeye dahil edilmedi.
+              </div>
+            )}
+            <div className="mt-5 flex flex-wrap gap-2">
+              <button type="button" onClick={() => { setSystemPoolFeedback(null); setShowSystemPoolTransferModal(true); }} className="inline-flex items-center gap-2 rounded-xl bg-emerald-400 px-4 py-2.5 text-sm font-black text-slate-950 hover:bg-emerald-300">
+                <Gift className="h-4 w-4" /> Bayiye Bonus/Hediye Gönder
+              </button>
+              <button type="button" onClick={() => setShowSystemPoolHistory((visible) => !visible)} className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/15">
+                <Database className="h-4 w-4" /> {showSystemPoolHistory ? 'Geçmişi Gizle' : 'Havuz Geçmişi'}
+              </button>
+              <button type="button" onClick={() => void loadSystemPool()} className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/15" disabled={systemPoolLoading}>
+                <RefreshCw className={`h-4 w-4 ${systemPoolLoading ? 'animate-spin' : ''}`} /> Yenile
+              </button>
+            </div>
+          </div>
+
+          {systemPoolFeedback && (
+            <div role="status" className={`rounded-xl border p-3 text-sm font-semibold ${systemPoolFeedback.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-800'}`}>
+              {systemPoolFeedback.text}
+            </div>
+          )}
+
+          {showSystemPoolHistory && (
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs">
+              <div className="border-b border-slate-200 px-5 py-4">
+                <h3 className="font-bold text-slate-900">Sistem Havuzu İşlem Dökümü</h3>
+                <p className="mt-1 text-xs text-slate-500">Sipariş payları, sipariş iadeleri ve yönetici aktarımları.</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[850px] text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-500">
+                    <tr>
+                      <th className="px-4 py-3">Tarih</th>
+                      <th className="px-4 py-3">Hareket</th>
+                      <th className="px-4 py-3">Bayi / Sipariş</th>
+                      <th className="px-4 py-3">Açıklama</th>
+                      <th className="px-4 py-3 text-right">Tutar</th>
+                      <th className="px-4 py-3 text-right">Bakiye sonrası</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {(systemPoolData?.transactions ?? []).map((transaction) => (
+                      <tr key={transaction.id}>
+                        <td className="whitespace-nowrap px-4 py-3 text-slate-600">{new Date(transaction.created_at).toLocaleString('tr-TR')}</td>
+                        <td className="px-4 py-3">
+                          <span className={`rounded-full px-2 py-1 font-bold ${transaction.direction === 'CREDIT' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}`}>
+                            {transaction.type === 'ORDER_SHARE' ? 'Sipariş %5' : transaction.type === 'ORDER_REFUND' ? 'Sipariş iadesi' : transaction.type}
+                          </span>
+                          <div className="mt-1 text-[10px] text-slate-500">{transaction.region === 'DOMESTIC' ? 'Yurt içi' : 'Yurt dışı'}</div>
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">{transaction.target_user_name || transaction.source_user_name || '—'}<div className="font-mono text-[10px] text-slate-500">{transaction.order_id || transaction.target_user_id || '—'}</div></td>
+                        <td className="max-w-sm px-4 py-3 text-slate-600">{transaction.description}</td>
+                        <td className={`px-4 py-3 text-right font-mono font-bold ${transaction.direction === 'CREDIT' ? 'text-emerald-700' : 'text-amber-800'}`}>{transaction.direction === 'CREDIT' ? '+' : '−'}${transaction.amount_usd.toFixed(2)}</td>
+                        <td className="px-4 py-3 text-right font-mono text-slate-700">${transaction.balance_after_usd.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                    {!systemPoolLoading && (systemPoolData?.transactions.length ?? 0) === 0 && (
+                      <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-500">Henüz havuz hareketi yok.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {showSystemPoolTransferModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-4" role="dialog" aria-modal="true" aria-labelledby="system-pool-transfer-title">
+              <form onSubmit={handleSystemPoolTransfer} className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 id="system-pool-transfer-title" className="text-xl font-black text-slate-900">Havuzdan Bayiye Aktar</h3>
+                    <p className="mt-1 text-sm text-slate-500">İşlem onaylandıktan sonra geri alınamaz.</p>
+                  </div>
+                  <button type="button" onClick={() => setShowSystemPoolTransferModal(false)} aria-label="Pencereyi kapat" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
+                </div>
+                <div className="mt-5 space-y-4">
+                  <label className="block text-sm font-semibold text-slate-700">Bayi ara (ad, kullanıcı ID veya e-posta)
+                    <input value={systemPoolSearch} onChange={(event) => setSystemPoolSearch(event.target.value)} placeholder="Ad, kullanıcı ID veya e-posta" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" />
+                  </label>
+                  <label className="block text-sm font-semibold text-slate-700">Bayi seçin
+                    <select value={systemPoolTargetUserId} onChange={(event) => setSystemPoolTargetUserId(event.target.value)} required className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">
+                      <option value="">Bayi seçin</option>
+                      {systemPoolTransferTargets.map((member) => <option key={member.user_id} value={member.user_id}>{member.full_name} · {member.user_id} · {member.email}</option>)}
+                    </select>
+                  </label>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="block text-sm font-semibold text-slate-700">Bölgesel havuz
+                      <select value={systemPoolCurrency} onChange={(event) => setSystemPoolCurrency(event.target.value as typeof systemPoolCurrency)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">
+                        <option value="DOMESTIC_USD">Yurt içi USD · ${systemPoolDomesticBalance.toFixed(2)}</option>
+                        <option value="INTERNATIONAL_USD">Yurt dışı USD · ${systemPoolInternationalBalance.toFixed(2)}</option>
+                      </select>
+                    </label>
+                    <label className="block text-sm font-semibold text-slate-700">İşlem türü
+                      <select value={systemPoolTransferType} onChange={(event) => setSystemPoolTransferType(event.target.value as typeof systemPoolTransferType)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">
+                        <option value="BONUS">Özel Bonus</option><option value="GIFT">Kampanya Hediyesi</option><option value="PROMOTION">Sistem Ödülü</option><option value="MANUAL_ADJUSTMENT">Düzeltme</option>
+                      </select>
+                    </label>
+                  </div>
+                  <label className="block text-sm font-semibold text-slate-700">Aktarılacak tutar (USD)
+                    <input type="number" min="0.01" step="0.01" max={systemPoolCurrency === 'DOMESTIC_USD' ? systemPoolDomesticBalance : systemPoolInternationalBalance} value={systemPoolAmount} onChange={(event) => setSystemPoolAmount(event.target.value)} required className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-mono" />
+                  </label>
+                  <label className="block text-sm font-semibold text-slate-700">Açıklama / not
+                    <textarea value={systemPoolDescription} onChange={(event) => setSystemPoolDescription(event.target.value)} maxLength={300} rows={3} required placeholder="Bayi hareketinde görünecek açıklama" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" />
+                  </label>
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Onay sonrası tutar havuzdan düşülür ve bayinin seçilen bölgesel USD cüzdanına eklenir. Bu işlem geri alınamaz.</div>
+                  <div className="flex justify-end gap-2">
+                    <button type="button" onClick={() => setShowSystemPoolTransferModal(false)} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Vazgeç</button>
+                    <button type="submit" disabled={systemPoolBusy || !systemPoolTargetUserId || !systemPoolAmount || !systemPoolDescription.trim()} className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-800 disabled:opacity-50">{systemPoolBusy ? 'Aktarılıyor…' : 'Havuzdan Aktar'}</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* SECTION: 🚀 BÜYÜMEYİ 2-3 KATINA ÇIKARAN 5 STRATEJİK İYİLEŞTİRME ÖNERİSİ & V2.2 SİSTEM AYARLARI */}
       {adminSection === 'strategic_growth' && (
@@ -3168,14 +3411,21 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
         <div className="space-y-8">
           {/* Top Metrics Banner */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-2 shadow-2xs">
-              <div className="text-xs font-mono text-slate-500 uppercase">
-                SİSTEM HAVUZU BAKİYESİ
+            <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-cyan-50 p-6 shadow-2xs">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-xs font-mono font-bold uppercase text-emerald-800">Sistem Havuzu Bakiyesi (%5)</div>
+                  <div className="mt-2 text-2xl font-bold font-mono tabular-nums text-slate-900">
+                    ${systemPoolBalance.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} USD
+                  </div>
+                  <div className="mt-2 text-xs text-slate-600">
+                    Yurt içi ${systemPoolDomesticBalance.toFixed(2)} · Yurt dışı ${systemPoolInternationalBalance.toFixed(2)}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">Siparişlerden ve devredilen bayi paylarından biriken dağıtılabilir tutar.</div>
+                </div>
+                <Coins className="h-7 w-7 shrink-0 text-emerald-700" />
               </div>
-              <div className="text-2xl font-bold font-mono tabular-nums text-slate-900">
-                {systemPoolBalance.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} $
-              </div>
-              <div className="text-xs text-slate-500">Siparişlerden biriken %5 sistem havuzu</div>
+              <button type="button" onClick={() => setAdminSection('system_pool')} className="mt-4 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800">Havuz yönetimi ve geçmişi</button>
             </div>
 
             <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-2 shadow-2xs">

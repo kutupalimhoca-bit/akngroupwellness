@@ -1259,9 +1259,35 @@ export type CommissionLogStatusType =
 // SQL Table 3: system_wallet (3. SİSTEM ŞİRKET VE DEVİR HAVUZU)
 export interface SystemWalletRecord {
   id: number; // INT PRIMARY KEY DEFAULT 1
-  system_pool_balance: number; // NUMERIC(15,2) DEFAULT 0.00 -- %5 Sistem Havuzu
+  system_pool_balance: number; // NUMERIC(15,2) DEFAULT 0.00 -- legacy fon bakiyesi
+  system_pool_domestic_usd?: number;
+  system_pool_international_usd?: number;
   unclaimed_pool_balance: number; // NUMERIC(15,2) DEFAULT 0.00 -- Yetkisizlik/Pasiflikten Devredenler
   updated_at: string; // TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+}
+
+export type SystemPoolCurrency = 'DOMESTIC_USD' | 'INTERNATIONAL_USD';
+export type SystemPoolTransferType = 'BONUS' | 'GIFT' | 'PROMOTION' | 'MANUAL_ADJUSTMENT';
+export type SystemPoolTransactionType = 'ORDER_SHARE' | 'UNCLAIMED_SHARE' | 'ORDER_REFUND' | SystemPoolTransferType;
+
+export interface SystemPoolTransactionRecord {
+  id: number;
+  request_id?: string;
+  direction: 'CREDIT' | 'DEBIT';
+  type: SystemPoolTransactionType;
+  currency: SystemPoolCurrency;
+  region: MemberRegion;
+  amount_usd: number;
+  balance_before_usd: number;
+  balance_after_usd: number;
+  order_id?: string | null;
+  source_user_id?: string | null;
+  source_user_name?: string | null;
+  target_user_id?: string | null;
+  target_user_name?: string | null;
+  admin_uid?: string | null;
+  description: string;
+  created_at: string;
 }
 
 // SQL Table 5: orders_log (5. SİPARİŞ HAREKETLERİ & CAYMA/İADE TAKİP TABLOSU)
@@ -1479,7 +1505,12 @@ export interface WalletTransactionRecord {
   user_id: number;
   external_user_id: string;
   user_full_name: string;
-  transaction_type: 'PACKAGE_PURCHASE_WALLET' | 'MEMBER_REGISTRATION_WALLET' | 'CREDIT_PURCHASE_WALLET';
+  transaction_type:
+    | 'PACKAGE_PURCHASE_WALLET'
+    | 'MEMBER_REGISTRATION_WALLET'
+    | 'CREDIT_PURCHASE_WALLET'
+    | 'SYSTEM_BONUS'
+    | 'ADMIN_GIFT';
   request_id: string;
   direction: 'DEBIT' | 'CREDIT';
   amount: number;
@@ -1649,6 +1680,9 @@ export interface CommissionTransaction {
   fraud_flagged?: boolean;
   fraud_reason?: string | null;
   system_fund_base_amount: number;
+  system_fund_base_amount_usd?: number;
+  system_fund_unclaimed_overflow_usd?: number;
+  system_fund_region?: MemberRegion;
   system_fund_unclaimed_overflow: number;
   system_fund_total_added: number;
   direct_sponsor: {
