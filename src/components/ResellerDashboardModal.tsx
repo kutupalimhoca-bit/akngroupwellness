@@ -281,6 +281,7 @@ export const ResellerDashboardModal: React.FC<ResellerDashboardModalProps> = ({
   const [presCalcCareer, setPresCalcCareer] = useState<number>(4);
   const [presCalcPackagePrice, setPresCalcPackagePrice] = useState<number>(30000);
   const [presIncludeMatching, setPresIncludeMatching] = useState<boolean>(true);
+  const [presIncludeFastRoi, setPresIncludeFastRoi] = useState<boolean>(true);
 
   // Presentation Multi-Way Earnings Formulas (V2.2)
   const presMonthlySessionRevenue = presCalcClients * presCalcPrice;
@@ -290,9 +291,14 @@ export const ResellerDashboardModal: React.FC<ResellerDashboardModalProps> = ({
   const presUnlockedRatesSum = (MONOLINE_DEPTH_RATES || []).slice(0, presCalcCareer).reduce((s, r) => s + r.percentage, 0);
   const presAvgDepthRate = presCalcCareer > 0 ? presUnlockedRatesSum / 7 : 0;
   const presMonthlyMonoline = Math.round((presCalcTeamOrders * presCalcPackagePrice * presAvgDepthRate) / 100);
+  const presSelectedTier = CAREER_TIERS.find((t) => t.level === presCalcCareer) || CAREER_TIERS[3];
+  const presMonthlyCareerPool = Math.round(
+    ((presCalcDirects + presCalcTeamOrders) * presCalcPackagePrice * 0.5) * presSelectedTier.poolBonusRate
+  );
   const presMatchingRate = presCalcCareer >= 6 ? 0.20 : presCalcCareer >= 5 ? 0.15 : presCalcCareer >= 3 ? 0.10 : 0;
   const presMonthlyMatching = presIncludeMatching && presCalcCareer >= 3 ? Math.round(presMonthlyMonoline * presMatchingRate) : 0;
-  const presTotalMonthlyEarnings = presMonthlySessionProfit + presMonthlyDirectSponsor + presMonthlyMonoline + presMonthlyMatching;
+  const presMonthlyFastRoi = presIncludeFastRoi && presCalcDirects >= 3 ? Math.round(3 * presCalcPackagePrice * 0.15) : 0;
+  const presTotalMonthlyEarnings = presMonthlySessionProfit + presMonthlyDirectSponsor + presMonthlyMonoline + presMonthlyCareerPool + presMonthlyMatching + presMonthlyFastRoi;
   const presYearlyEarnings = presTotalMonthlyEarnings * 12;
 
   useEffect(() => {
@@ -1893,8 +1899,10 @@ export const ResellerDashboardModal: React.FC<ResellerDashboardModalProps> = ({
                     (s, r) => s + Number(r.totalSalesAmount || 5000),
                     0
                   );
+                  const totalActiveDirects = leftActiveCount + rightActiveCount;
                   const missingLeft = Math.max(0, 1 - leftActiveCount);
                   const missingRight = Math.max(0, 1 - rightActiveCount);
+                  const missingFastRoi = Math.max(0, 3 - totalActiveDirects);
 
                   return (
                     <div className="space-y-4">
@@ -1979,6 +1987,20 @@ export const ResellerDashboardModal: React.FC<ResellerDashboardModalProps> = ({
                             {missingLeft === 0 && missingRight === 0
                               ? '✓ İki Kol Aktif ve Dengeli'
                               : `Eksikler: Sol (${missingLeft}) / Sağ (${missingRight})`}
+                          </div>
+                        </div>
+
+                        <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-slate-800">
+                          <div className="text-[10px] text-slate-400">
+                            3 Getir Bedavaya Getir (+%15 Fast-ROI)
+                          </div>
+                          <div className="text-sm font-bold text-white mt-0.5">
+                            {Math.min(3, totalActiveDirects)} / 3 Direkt Bayi
+                          </div>
+                          <div className="text-[11px] text-teal-300 mt-0.5">
+                            {missingFastRoi === 0
+                              ? '✓ +%15 Ekstra Bonus (%75 İade) Kazanıldı!'
+                              : `Eksik: +${missingFastRoi} direkt bayi kaydı`}
                           </div>
                         </div>
 
@@ -2524,7 +2546,7 @@ export const ResellerDashboardModal: React.FC<ResellerDashboardModalProps> = ({
                       <a
                         href={`https://wa.me/?text=${encodeURIComponent(
                           `🌟 AuraBio Kuantum Biyo-Rezonans & Monoline 7 Nefis MLM İş Sunum Raporu (v6.0 Enterprise)\n\n` +
-                          `Canlı optik & 3D biyo-aura taraması, 10s vokal akustik F0 analizi, Web BLE akıllı saat nabız köprüsü, 302+ kadim şifa, 15 resmi kredi paketi ve %20 Direkt Sponsor + %25 Monoline Tek Hat + %5 Sistem Havuzu gelir modelini interaktif kataloğumuzdan inceleyin:\n` +
+                          `Canlı optik & 3D biyo-aura taraması, 10s vokal akustik F0 analizi, Web BLE akıllı saat nabız köprüsü, 302+ kadim şifa, 15 resmi kredi paketi ve %20 Direkt Sponsor + %25 Monoline Tek Hat + %50 Kariyer Havuzu gelir modelini interaktif kataloğumuzdan inceleyin:\n` +
                           `${typeof window !== 'undefined' ? window.location.origin : ''}/?ref=${encodeURIComponent(activeReseller.referralCode)}&view=presentation\n\n` +
                           `🎁 Yetkili Bayi Referans Kodu: ${activeReseller.referralCode}`
                         )}`}
@@ -2567,8 +2589,8 @@ export const ResellerDashboardModal: React.FC<ResellerDashboardModalProps> = ({
                       </p>
                       <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-slate-300 space-y-1">
                         <div className="text-emerald-400 font-semibold">• Biyo-Rezonans, 302+ Frekans, 50+ Hastalık &amp; MindSpace Stüdyo</div>
-                        <div className="text-amber-300 font-semibold">• Monoline 7 Nefis MLM (%20 Sponsor • %25 Tek Hat • %5 Sistem Havuzu)</div>
-                        <div className="text-indigo-300 font-semibold">• V2.2 Liderlik Eşleşme (%20) • Unilevel Sonsuzluk (%1-%7)</div>
+                        <div className="text-amber-300 font-semibold">• Monoline 7 Nefis MLM (%20 Sponsor • %25 Tek Hat • %50 Kariyer Havuzu)</div>
+                        <div className="text-indigo-300 font-semibold">• V2.2 Liderlik Eşleşme (%20) • Unilevel Sonsuzluk (%1-%7) • Fast-ROI (%75 İade)</div>
                         <div className="text-slate-400">• 15 Resmi Alışveriş Paketi (32 Krediden 999.999 Krediye)</div>
                       </div>
                     </div>
@@ -2725,6 +2747,15 @@ export const ResellerDashboardModal: React.FC<ResellerDashboardModalProps> = ({
                           />
                           <span className="text-purple-300 font-semibold text-[11px]">Matching (%10..%20)</span>
                         </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={presIncludeFastRoi}
+                            onChange={(e) => setPresIncludeFastRoi(e.target.checked)}
+                            className="accent-emerald-500 rounded"
+                          />
+                          <span className="text-emerald-300 font-semibold text-[11px]">Fast-ROI (+%15 İade)</span>
+                        </label>
                       </div>
                     </div>
 
@@ -2742,10 +2773,20 @@ export const ResellerDashboardModal: React.FC<ResellerDashboardModalProps> = ({
                           <span className="text-slate-400">Monoline Tek Hat (%25):</span>
                           <span className="font-mono font-bold text-teal-300">+{formatUsd(presMonthlyMonoline)}</span>
                         </div>
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                          <span className="text-slate-400">{presSelectedTier.title} Havuz Payı:</span>
+                          <span className="font-mono font-bold text-amber-300">+{formatUsd(presMonthlyCareerPool)}</span>
+                        </div>
                         {presMonthlyMatching > 0 && (
                           <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
                             <span className="text-slate-400">Matching Bonus:</span>
                             <span className="font-mono font-bold text-purple-300">+{formatUsd(presMonthlyMatching)}</span>
+                          </div>
+                        )}
+                        {presMonthlyFastRoi > 0 && (
+                          <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                            <span className="text-slate-400">Fast-ROI Bonusu:</span>
+                            <span className="font-mono font-bold text-emerald-300">+{formatUsd(presMonthlyFastRoi)}</span>
                           </div>
                         )}
                       </div>
@@ -2823,7 +2864,7 @@ export const ResellerDashboardModal: React.FC<ResellerDashboardModalProps> = ({
                       <span>6. Monoline 7 Nefis MLM &amp; 4 Gelir</span>
                     </div>
                     <p className="text-[11px] text-slate-400 leading-relaxed">
-                      Danışan seans kârı, %20 Direkt Sponsor, %25 Küresel Tek Hat (7 Derinlik) ve %5 Sistem Havuzu; kalan %50 şirket brüt marjıdır.
+                      Danışan seans kârı, %20 Direkt Sponsor, %25 Küresel Tek Hat (7 Derinlik) ve %50 Kariyer Havuzu &amp; Bonusları.
                     </p>
                   </div>
 

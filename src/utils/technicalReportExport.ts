@@ -144,11 +144,12 @@ export function downloadTechnicalReportWord(): void {
       <li><strong>1. Danışan Seans Geliri (Perakende Kar):</strong> Bayiler seans kredi havuzundan $1.21 – $3.16 birim maliyetle kullandıkları seansları danışanlarına $30 – $70 aralığında uygulayarak yüksek perakende kar elde eder.</li>
       <li><strong>2. %20 Direkt Sponsor Referans Primi:</strong> Bayinin kendi referans koduyla davet ettiği üyelerin satın aldığı tüm paketlerden anında <strong>%20 Direkt Sponsor Primi</strong> Sponsor Cüzdanına yansır.</li>
       <li><strong>3. %25 Küresel Tek Hat (Monoline 7 Derinlik) Primi:</strong> Kimin davet ettiğine bakılmaksızın her siparişin <strong>%25'i</strong>, siparişi veren üyenin küresel tek hattaki üst 7 sırasına <strong>1. Sıra %7, 2. Sıra %5, 3. Sıra %4, 4. Sıra %3, 5. Sıra %2, 6. Sıra %2, 7. Sıra %2</strong> oranlarında otomatik dağıtılır.</li>
-      <li><strong>4. %5 Sistem Havuzu:</strong> Her siparişin %5'i sistem havuzuna aktarılır; derinlik yetkisizliğinden devreden tutarlar da bu havuza eklenir. Kalan %50 bayiye veya komisyon hesabına yazılmaz; şirketin brüt marjı olarak kalır.</li>
+      <li><strong>4. %50 Sistem / Kariyer Havuzu Fonu &amp; Anlık Kariyer Bonusları:</strong> Her siparişin %50'si Kariyer Havuzuna aktarılır. 7 Nefis Mertebesine ulaşan bayiler havuzdan ek pay (%2 - %15) ve yönetici tarafından cüzdanlarına anında aktarılan Kariyer Bonusları kazanır.</li>
       <li><strong>5. Liderlik Eşleşme Bonusu (Matching %20):</strong> Alt ekibinizdeki liderlerin kazançları üzerinden 1. Nesil %10, 2. Nesil %5 ve 3. Nesil %5 oranında doğrudan cüzdanınıza yatan liderlik primi.</li>
       <li><strong>6. Unilevel Sonsuzluk Primi (Infinity %1 - %7):</strong> Kariyer basamağınıza göre 8. derinlikten sonsuz derinliğe kadar tüm organizasyon cironuzdan aldığınız diferansiyel fark primi.</li>
-      <li><strong>7. 48 Saatlik FOMO Kaçırma Koruması &amp; Kurtarma:</strong> Pasife düşen bayinin alt ekibinden komisyon kaçmasını engelleyen geri sayım ve tek tıkla kurtarma mekanizması.</li>
-      <li><strong>8. Bayiler Arası P2P Transfer &amp; Aktivasyon Kuponları:</strong> Bayiler kazanç bakiyelerini alt bayilerine aktarabilir veya üyelik hediye kuponları oluşturabilir.</li>
+      <li><strong>7. &ldquo;3 Getir Bedavaya Getir&rdquo; Fast-ROI İkramiyesi (+%15):</strong> İlk 3 direkt satışınızda %60 sponsor primine ek olarak anında +%15 Fast-ROI ikramiyesi ödenir; toplam %75 nakit iade ile paket maliyetiniz sıfırlanır.</li>
+      <li><strong>8. 48 Saatlik FOMO Kaçırma Koruması &amp; Kurtarma:</strong> Pasife düşen bayinin alt ekibinden komisyon kaçmasını engelleyen geri sayım ve tek tıkla kurtarma mekanizması.</li>
+      <li><strong>9. Bayiler Arası P2P Transfer &amp; Aktivasyon Kuponları:</strong> Bayiler kazanç bakiyelerini alt bayilerine aktarabilir veya üyelik hediye kuponları oluşturabilir.</li>
       <li><strong>10. Esnek 30 Günlük Aktiflik Kuralı:</strong> Her ay zorunlu paket alımı yoktur; 1 paket satın alma VEYA 1 yeni üye kaydetme ile aktiflik ücretsiz korunur.</li>
     </ul>
 
@@ -416,10 +417,11 @@ export function downloadTechnicalReportPDF(): void {
     '1. Danisan Seans Kari: 15 kredi paketinde $1.21-$3.16 birim maliyet ile $30-$70 seans uygulamasi.',
     '2. %20 Direkt Sponsor Primi: Referans kodunuzla kaydolan uyelerin her paket alimindan aninda %20 nakit komisyon.',
     '3. %25 Monoline Kuresel Tek Hat Primi: Ust 7 siraya %7, %5, %4, %3, %2, %2, %2 oraninda otomatik dagitim.',
-    '4. %5 Sistem Havuzu: Derinlik yetkisizligi devirleri dahil sistem havuzuna aktarilir; kalan %50 sirket brut marjidir.',
+    '4. %50 Kariyer Fonu & Bonuslar: Nefs-i Emmare -> Nefs-i Kamile 7 mertebe havuz payi (%2-%15) ve anlik cuzdana bonus.',
     '5. Liderlik Eslesme Bonusu (Matching %20): 1. Nesil %10, 2. Nesil %5, 3. Nesil %5 derinlik kazanci.',
     '6. Unilevel Sonsuzluk Primi (Infinity %1-%7): 8. derinlikten sonsuza kadar diferansiyel ciro fark primi.',
-    '7. Yasal Uyum: BDDK/TCMB 3D Secure Sanal POS, 14 Gun Cayma Blokesi, Sahsi TR IBAN ve %20 Stopaj/Fatura Iadesi.'
+    '7. 3 Getir Bedavaya Getir (+%15 Fast-ROI): Ilk 3 direkt satista toplam %75 nakit iade ile paket maliyeti sifirlama.',
+    '8. Yasal Uyum: BDDK/TCMB 3D Secure Sanal POS, 14 Gun Cayma Blokesi, Sahsi TR IBAN ve %20 Stopaj/Fatura Iadesi.'
   ];
 
   mlmItems.forEach((item) => {
@@ -455,7 +457,7 @@ export function downloadTechnicalReportPDF(): void {
     doc.setTextColor(146, 64, 14);
     doc.text(
       clean(
-        `${tier.label}: ${tier.title} | Min: ${tier.minPackageLabel} & ${tier.minActiveDirects} Direkt Uye | ${tier.unlockedDepth}. Derinlik (%${depthRule?.percentage || 0})`
+        `${tier.label}: ${tier.title} | Min: ${tier.minPackageLabel} & ${tier.minActiveDirects} Direkt Uye | ${tier.unlockedDepth}. Derinlik (%${depthRule?.percentage || 0}) | Havuz: ${tier.poolBonusLabel}`
       ),
       margin + 3,
       y + 4.5

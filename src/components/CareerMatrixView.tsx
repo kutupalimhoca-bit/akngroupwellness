@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import { formatUsd } from '../utils/currency';
-import { INTERNATIONAL_CAREER_MULTIPLIER } from '../engines/commissionEngine';
 import {
   Award,
   CheckCircle2,
@@ -14,6 +13,7 @@ import {
   Scale,
   ShieldAlert,
   ShieldCheck,
+  Sparkles,
   Target,
   TrendingUp,
   Unlock,
@@ -24,6 +24,7 @@ import {
   CronJobExecutionRecord,
   MonolineMember,
   PACKAGES,
+  PoolDistributionRecord,
   evaluateMemberOrganizationMetrics,
 } from '../types/monoline';
 
@@ -33,7 +34,11 @@ interface CareerMatrixViewProps {
   selectedMember?: MonolineMember;
   selectedMemberId?: string;
   onSelectMember?: (userId: string) => void;
+  systemCareerFundBalance?: number;
+  systemFundBalance?: number;
+  poolDistributions: PoolDistributionRecord[];
   cronLogs?: CronJobExecutionRecord[];
+  onDistributePool: () => void;
   onBoostCareer?: (userId: string, level: number) => void;
   onBoostMemberCareer?: (userId: string, level: number) => void;
   onTriggerCron?: () => void;
@@ -41,19 +46,6 @@ interface CareerMatrixViewProps {
   isSubmitting?: boolean;
   isAdminAuthenticated?: boolean;
 }
-
-const getScopedTierThresholds = (tier: CareerTier) => ({
-  domestic: {
-    personal: tier.minPersonalVolume,
-    directs: tier.minActiveDirects,
-    group: tier.minGroupVolume,
-  },
-  international: {
-    personal: tier.minPersonalVolume * INTERNATIONAL_CAREER_MULTIPLIER,
-    directs: tier.minActiveDirects * INTERNATIONAL_CAREER_MULTIPLIER,
-    group: tier.minGroupVolume * INTERNATIONAL_CAREER_MULTIPLIER,
-  },
-});
 
 const PYRAMID_COLORS: Record<
   number,
@@ -138,6 +130,10 @@ export const CareerMatrixView: React.FC<CareerMatrixViewProps> = ({
   selectedMember: propSelectedMember,
   selectedMemberId,
   onSelectMember,
+  systemCareerFundBalance: propSystemCareerFundBalance,
+  systemFundBalance,
+  poolDistributions,
+  onDistributePool,
   onBoostCareer,
   onBoostMemberCareer,
   onTriggerCron,
@@ -212,6 +208,13 @@ export const CareerMatrixView: React.FC<CareerMatrixViewProps> = ({
     }
   };
 
+  const systemCareerFundBalance =
+    typeof propSystemCareerFundBalance === 'number'
+      ? propSystemCareerFundBalance
+      : typeof systemFundBalance === 'number'
+      ? systemFundBalance
+      : 0;
+
   const isSimulating = Boolean(propIsSimulating || isSubmitting);
 
   const memberOrgEval = useMemo(
@@ -263,6 +266,14 @@ export const CareerMatrixView: React.FC<CareerMatrixViewProps> = ({
                 Kariyer & Organizasyon Motorunu Çalıştır
               </button>
             )}
+            <button
+              onClick={onDistributePool}
+              disabled={isSimulating || systemCareerFundBalance <= 0}
+              className="px-4 py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 disabled:opacity-40 text-emerald-300 border border-emerald-500/40 font-bold text-xs flex items-center gap-2 transition-all cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4" />
+              Havuz Paylarını Dağıt ({formatUsd(systemCareerFundBalance)})
+            </button>
           </div>
         </div>
       </div>
@@ -529,7 +540,7 @@ export const CareerMatrixView: React.FC<CareerMatrixViewProps> = ({
               🎯 Kariyer Bazlı Organizasyon & Bayilik Şartları Matrisi
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              Her mertebe için Kişisel Alışveriş, Direkt Referans, Grup Ciro Şartı (PGV), %50 Dengeli Hat Kuralı (4. mertebeden itibaren), Aktif Alt Ekip Kariyer Şartı ve Derinlik Hak Edişleri. Yurt dışı bayiler için kişisel, direkt ve grup eşikleri {INTERNATIONAL_CAREER_MULTIPLIER} katıdır.
+              Her mertebe için Kişisel Alışveriş, Direkt Referans, Grup Ciro Şartı (PGV), %50 Dengeli Hat Kuralı (4. mertebeden itibaren), Aktif Alt Ekip Kariyer Şartı ve Derinlik Hak Edişleri.
             </p>
           </div>
           {selectedTierFilter !== null && (
@@ -564,7 +575,6 @@ export const CareerMatrixView: React.FC<CareerMatrixViewProps> = ({
                   const check = memberOrgEval.tierChecks.find((c) => c.level === tier.level);
                   const isCurrent = selectedMember.career_level === tier.level;
                   const isUnlocked = selectedMember.career_level >= tier.level;
-                  const scoped = getScopedTierThresholds(tier);
 
                   return (
                     <tr
@@ -607,26 +617,17 @@ export const CareerMatrixView: React.FC<CareerMatrixViewProps> = ({
                       <td className="py-3.5 px-3">
                         <div className="font-semibold text-slate-200">{tier.minPackageLabel}</div>
                         <div className="text-[11px] text-slate-400">
-                          Yurt içi: Min. {formatUsd(scoped.domestic.personal)}
+                          Min. {formatUsd(tier.minPersonalVolume)} + aktif 30 günlük süre
                         </div>
-                        <div className="text-[11px] text-slate-400">
-                          Yurt dışı: Min. {formatUsd(scoped.international.personal)}
-                        </div>
-                        <div className="text-[10px] text-slate-500">+ aktif 30 günlük süre</div>
                       </td>
 
                       <td className="py-3.5 px-3">
                         {tier.minActiveDirects === 0 ? (
                           <span className="text-slate-400">Şart Yok</span>
                         ) : (
-                          <div className="space-y-0.5">
-                            <div className="font-bold text-cyan-300">
-                              Yurt içi: En az {scoped.domestic.directs} Aktif Üye
-                            </div>
-                            <div className="font-bold text-cyan-200/80">
-                              Yurt dışı: En az {scoped.international.directs} Aktif Üye
-                            </div>
-                          </div>
+                          <span className="font-bold text-cyan-300">
+                            En az {tier.minActiveDirects} Aktif Üye
+                          </span>
                         )}
                       </td>
 
@@ -634,12 +635,9 @@ export const CareerMatrixView: React.FC<CareerMatrixViewProps> = ({
                         {tier.minGroupVolume <= 0 ? (
                           <span className="text-slate-400">Şart Yok</span>
                         ) : (
-                          <div className="space-y-0.5">
+                          <div>
                             <div className="font-mono font-bold text-emerald-400">
-                              Yurt içi: {formatUsd(scoped.domestic.group)} Ekip Cirosu
-                            </div>
-                            <div className="font-mono font-bold text-emerald-300/80">
-                              Yurt dışı: {formatUsd(scoped.international.group)} Ekip Cirosu
+                              {formatUsd(tier.minGroupVolume)} Ekip Cirosu
                             </div>
                             {tier.enforceMaxSingleLegPercent && (
                               <div className="text-[10px] text-amber-300 mt-0.5">
@@ -678,6 +676,11 @@ export const CareerMatrixView: React.FC<CareerMatrixViewProps> = ({
                       <td className="py-3.5 px-3">
                         <div className="font-bold text-emerald-300">
                           {tier.unlockedDepth}. Derinlik (%{tier.depthCommissionPercent})
+                        </div>
+                        <div className="text-[10px] text-purple-300 mt-0.5">
+                          {tier.level === 7
+                            ? '+ %10 Sistem Fonu Havuz Payı'
+                            : `%${Math.round(tier.poolBonusRate * 100)} Kariyer Havuz Payı`}
                         </div>
                       </td>
 
@@ -718,7 +721,6 @@ export const CareerMatrixView: React.FC<CareerMatrixViewProps> = ({
           const qualifiedMembersCount = members.filter(
             (m) => m.career_level >= tier.level && m.is_active && !m.is_locked
           ).length;
-          const scoped = getScopedTierThresholds(tier);
 
           return (
             <div
@@ -783,40 +785,26 @@ export const CareerMatrixView: React.FC<CareerMatrixViewProps> = ({
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-slate-400">Direkt Referans:</span>
                     <span
-                      className={`font-mono font-bold text-right ${
+                      className={`font-mono font-bold ${
                         check?.directsOk ? 'text-emerald-400' : 'text-amber-300'
                       }`}
                     >
-                      {tier.minActiveDirects === 0 ? (
-                        'Şart Yok'
-                      ) : (
-                        <>
-                          <div>Yurt içi: En az {scoped.domestic.directs} Aktif Üye</div>
-                          <div className="text-cyan-200/80">
-                            Yurt dışı: En az {scoped.international.directs} Aktif Üye
-                          </div>
-                        </>
-                      )}
+                      {tier.minActiveDirects === 0
+                        ? 'Şart Yok'
+                        : `En az ${tier.minActiveDirects} Aktif Üye`}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-slate-400">Grup Ciro (PGV):</span>
                     <span
-                      className={`font-mono font-bold text-right ${
+                      className={`font-mono font-bold ${
                         check?.groupVolumeOk ? 'text-emerald-400' : 'text-amber-300'
                       }`}
                     >
-                      {tier.minGroupVolume <= 0 ? (
-                        'Şart Yok'
-                      ) : (
-                        <>
-                          <div>Yurt içi: {formatUsd(scoped.domestic.group)}</div>
-                          <div className="text-emerald-200/80">
-                            Yurt dışı: {formatUsd(scoped.international.group)}
-                          </div>
-                        </>
-                      )}
+                      {tier.minGroupVolume <= 0
+                        ? 'Şart Yok'
+                        : `${formatUsd(tier.minGroupVolume)}`}
                     </span>
                   </div>
 

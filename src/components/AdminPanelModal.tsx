@@ -131,7 +131,6 @@ import { ResellerDetailModal } from './ResellerDetailModal';
 import { DigitalInvoiceModal } from './DigitalInvoiceModal';
 import { CampaignsManagerAdminTab } from './CampaignsManagerAdminTab';
 import { SiteContentAdminTab } from './SiteContentAdminTab';
-import { DocumentsAdminTab } from './DocumentsAdminTab';
 import { MonolineMlmPortalModal } from './MonolineMlmPortalModal';
 import { 
   downloadInvoicePDF, 
@@ -152,7 +151,7 @@ interface AdminPanelModalProps {
 
 export const ADMIN_SESSION_KEY = 'aurabio_admin_session_v1';
 export const ADMIN_TAB_KEY = 'aurabio_admin_tab_v1';
-const ADMIN_TABS = ['members', 'packages', 'resellers', 'dealers', 'devices', 'invoices', 'campaigns', 'scans', 'monoline_sql', 'site_content', 'documents'] as const;
+const ADMIN_TABS = ['members', 'packages', 'resellers', 'dealers', 'devices', 'invoices', 'campaigns', 'scans', 'monoline_sql', 'site_content'] as const;
 type AdminTab = typeof ADMIN_TABS[number];
 const ADMIN_MODULE_LINKS: { id: Exclude<AdminTab, 'monoline_sql'>; label: string }[] = [
   { id: 'members', label: 'Üye & Ödeme Onayları' },
@@ -163,7 +162,6 @@ const ADMIN_MODULE_LINKS: { id: Exclude<AdminTab, 'monoline_sql'>; label: string
   { id: 'invoices', label: 'Dijital E-Fatura Yönetimi' },
   { id: 'campaigns', label: 'Kampanyalar & Fırsatlar' },
   { id: 'site_content', label: 'Site İçerikleri' },
-  { id: 'documents', label: 'Doküman Yönetimi' },
   { id: 'scans', label: 'Tarama Kayıtları' },
 ];
 
@@ -1947,17 +1945,6 @@ const [scanActionMsg, setScanActionMsg] = useState<string | null>(null);
                 }`}
               >
                 <span>Site İçerikleri</span>
-              </button>
-
-              <button
-                onClick={() => setAdminTab('documents')}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                  adminTab === 'documents'
-                    ? 'bg-gradient-to-r from-sky-600/30 via-indigo-600/30 to-sky-600/30 text-sky-300 border border-sky-500/50 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                }`}
-              >
-                <span>Doküman Yönetimi</span>
               </button>
 
               <button
@@ -4647,12 +4634,6 @@ const [scanActionMsg, setScanActionMsg] = useState<string | null>(null);
 
             {adminTab === 'site_content' && (
               <SiteContentAdminTab
-                onSuccessMessage={(msg) => setActionSuccessMsg(msg)}
-              />
-            )}
-
-            {adminTab === 'documents' && (
-              <DocumentsAdminTab
                 onSuccessMessage={(msg) => setActionSuccessMsg(msg)}
               />
             )}

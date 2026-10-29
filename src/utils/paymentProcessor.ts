@@ -220,9 +220,9 @@ export const LEGAL_CONTRACT_TEXTS: Record<
     title: 'AuraBio Bağımsız Bayilik (MLM) ve V2.2 Kazanç Planı Kuralları',
     version: 'v2.2',
     summary:
-      'Sözleşme Özeti (V2.2): Sipariş tutarının %20’si doğrudan sponsor primi, %25’i monoline derinlik primi ve %5’i sistem havuzu olarak dağıtılır. Kalan %50 şirket brüt marjı olarak ayrılır.',
+      'Monoline Küresel Tek Hat, %20 Direkt Sponsor, %15 Hızlı Başlangıç (3 Getir Bedavaya Getir), 7 Derinlik + Unilevel Sonsuzluk Primi, 14 Günlük Cayma Blokesi ve Kendi Adına Kayıtlı TR IBAN çekim kurallarını düzenler.',
     clauses: [
-      '1. KAZANÇ PLANI (V2.2): Paket satışlarının %20’si direkt sponsor primi, %25’i yedi derinlikli monoline primi olarak dağıtılır ve %5’i sistem havuzuna aktarılır. Derinlik yetkisizliği nedeniyle devreden tutarlar da sistem havuzuna eklenir. Kalan %50 bayiye veya komisyon hesabına yazılmaz; şirketin brüt marjı olarak kalır ve ürün maliyeti, kargo ve operasyon giderlerini karşılar.',
+      '1. KAZANÇ PLANI (V2.2): Paket satışlarından %20 Direkt Sponsor Primi, ilk 30 günde 3 direkt satışa +%15 Hızlı Başlangıç (Fast-ROI) Nakit İadesi, %25 Monoline 7 Derinlik Primi ve %50 Sistem/Kariyer & Unilevel Sonsuzluk Havuzu dağıtımı yapılır.',
       '2. 14 GÜNLÜK CAYMA KORUMASI: Tüketici Kanunu gereği kazanılan tüm komisyonlar 14 gün boyunca "Bekleyen Bakiye (Pending Balance)" statüsünde tutulur ve 14. gün sonunda otomatik olarak "Çekilebilir Net Bakiye"ye aktarılır.',
       '3. ESNEK AKTİFLİK ("VEYA" KURALI): Bayinin komisyon çekebilmesi için her ay paket satın alma zorunluluğu yoktur; ilgili ay en az 1 yeni aktif üye/bayi kaydetmesi VEYA aylık kişisel aktiflik paketini yenilemesi yeterlidir.',
       '4. BANKA UYUMU & İSİM EŞLEŞMESİ (CROSS-CHECK): Komisyon ödemeleri yalnızca bayinin sistemde kayıtlı kendi Ad-Soyadı ile birebir eşleşen resmi TR IBAN banka hesabına Havale/EFT ile ödenir. Farklı bir isme veya kripto cüzdanlara ödeme kesinlikle yapılmaz.',

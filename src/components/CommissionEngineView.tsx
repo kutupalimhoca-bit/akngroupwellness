@@ -93,6 +93,7 @@ export const CommissionEngineView: React.FC<CommissionEngineViewProps> = ({
     | 'ROLLING_CAREER'
     | 'UNCLAIMED_LEDGER'
     | 'BULLMQ_QUEUE'
+    | 'DYNAMIC_POOL'
     | 'V21_ENTERPRISE'
     | 'V22_GOLDEN_REVISIONS'
   >('V22_GOLDEN_REVISIONS');
@@ -117,6 +118,7 @@ export const CommissionEngineView: React.FC<CommissionEngineViewProps> = ({
     dynamic_compression_enabled: true,
     unilevel_infinity_enabled: true,
     matching_bonus_enabled: true,
+    fast_roi_3x15_enabled: true,
   };
 
   useEffect(() => {
@@ -286,6 +288,25 @@ export const CommissionEngineView: React.FC<CommissionEngineViewProps> = ({
     }
   };
 
+  const handleDynamicPoolDistribute = async () => {
+    setV2Busy(true);
+    setV2ActionBanner(null);
+    try {
+      const res = await fetch('/api/v1/career-pool/distribute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Havuz dağıtımı başarısız.');
+      setV2ActionBanner({ type: 'success', message: data.message });
+      if (onRefreshState) await onRefreshState();
+    } catch (err: any) {
+      setV2ActionBanner({ type: 'error', message: err?.message || 'Havuz dağıtım hatası.' });
+    } finally {
+      setV2Busy(false);
+    }
+  };
+
   const handleCalculateActiveCareer = async (targetUserId?: string) => {
     setV2Busy(true);
     setV2ActionBanner(null);
@@ -315,12 +336,15 @@ export const CommissionEngineView: React.FC<CommissionEngineViewProps> = ({
     ? members.find((m) => m.user_id === selectedBuyer.sponsor_id)
     : undefined;
 
-  const previewFundBase = Number(((orderAmount * 5) / 100).toFixed(2));
+  const previewFundBase = Number(((orderAmount * 50) / 100).toFixed(2));
   const previewSponsor = Number(((orderAmount * 20) / 100).toFixed(2));
-  const previewUplineTotal = Number(((orderAmount * 25) / 100).toFixed(2));
+  const previewUplineTotal = Number(((orderAmount * 30) / 100).toFixed(2));
 
   const totalPendingBalance = members.reduce((sum, m) => sum + getMemberRegionalPendingUsd(m), 0);
   const totalAvailableBalance = members.reduce((sum, m) => sum + getMemberRegionalUsdBalance(m), 0);
+  const totalLeadershipPoints = members
+    .filter((m) => m.is_active && !m.is_locked)
+    .reduce((sum, m) => sum + (m.pool_leadership_points || 10), 0);
 
   const noYetkiSum = unclaimedCommissions
     .filter((u) => u.reason_code === 'POOL_TRANSFER_NO_YETKI')
@@ -424,12 +448,12 @@ export const CommissionEngineView: React.FC<CommissionEngineViewProps> = ({
           </div>
 
           <div className="p-3.5 rounded-xl bg-slate-800/90 border border-slate-700 space-y-1">
-            <div className="text-[11px] font-mono text-purple-300">4. SİSTEM HAVUZU (%5)</div>
+            <div className="text-[11px] font-mono text-purple-300">4. DİNAMİK HAVUZ (%50)</div>
             <div className="text-sm font-bold text-white font-mono tabular-nums">
-              {systemFundBalance.toLocaleString('tr-TR')} $
+              {systemFundBalance.toLocaleString('tr-TR')} $ · {totalLeadershipPoints} Puan
             </div>
             <div className="text-[11px] text-slate-400">
-              Yönetici kontrolünde; otomatik dağıtım yapılmaz
+              Liderlik puanı oranında dinamik dağıtım
             </div>
           </div>
 
@@ -662,7 +686,7 @@ export const CommissionEngineView: React.FC<CommissionEngineViewProps> = ({
           )}
         </section>
 
-        {/* Right 7 Columns: Real-Time Distribution Breakdown (%20 / %25 / %5) */}
+        {/* Right 7 Columns: Real-Time Distribution Breakdown (%50 / %20 / %25) */}
         <section className="lg:col-span-7 bg-white border border-slate-200 rounded-xl p-6 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-4">
             <div>
@@ -698,14 +722,15 @@ export const CommissionEngineView: React.FC<CommissionEngineViewProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-1.5">
               <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
-                <span>1. Sistem Havuzu</span>
-                <span className="font-mono text-slate-900 font-bold">%5 + Devirler</span>
+                <span>1. Sistem / Kariyer Fonu</span>
+                <span className="font-mono text-slate-900 font-bold">%50 + Devirler</span>
               </div>
               <div className="text-2xl font-bold font-mono tabular-nums text-slate-900">
                 {previewFundBase.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} $
               </div>
               <p className="text-xs text-slate-500 leading-relaxed">
-                Yönetici kontrolünde tutulur; otomatik dağıtım yapılmaz.
+                Dinamik Havuz Motoru ile liderlere{' '}
+                <code className="font-mono">pool_leadership_points</code> oranında dağıtılır.
               </p>
             </div>
 
@@ -903,6 +928,17 @@ export const CommissionEngineView: React.FC<CommissionEngineViewProps> = ({
             </button>
             <button
               type="button"
+              onClick={() => setActiveV2Tab('DYNAMIC_POOL')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                activeV2Tab === 'DYNAMIC_POOL'
+                  ? 'bg-slate-900 text-white'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              4. Dinamik Havuz Motoru
+            </button>
+            <button
+              type="button"
               onClick={() => setActiveV2Tab('BULLMQ_QUEUE')}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                 activeV2Tab === 'BULLMQ_QUEUE'
@@ -943,7 +979,7 @@ export const CommissionEngineView: React.FC<CommissionEngineViewProps> = ({
                   : 'bg-emerald-50 text-emerald-900 hover:bg-emerald-100 border border-emerald-300'
               }`}
             >
-              8. 🏆 V2.2 6 Altın Revizyon (Sonsuzluk, Eşleşme, Sıkıştırma &amp; Çekim)
+              8. 🏆 V2.2 6 Altın Revizyon (Sonsuzluk, Eşleşme, Sıkıştırma &amp; Fast-ROI)
             </button>
           </div>
         </div>
@@ -1406,6 +1442,92 @@ export const CommissionEngineView: React.FC<CommissionEngineViewProps> = ({
           </div>
         )}
 
+        {/* TAB 4: DYNAMIC POOL SPLIT ENGINE */}
+        {activeV2Tab === 'DYNAMIC_POOL' && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <div>
+                <div className="text-xs font-bold text-slate-900">
+                  Dinamik Havuz Dağıtımı (Dynamic Pool Split Engine) — Puan Bazlı Sistem Fonu Paylaşımı
+                </div>
+                <div className="text-xs text-slate-500">
+                  Sistem Fonunda (%50 + Devirler) biriken{' '}
+                  <strong>{systemFundBalance.toLocaleString('tr-TR')} $</strong>, sabit taahhüt
+                  yerine aktif liderlerin dönemsel kariyer ağırlığı ve 30 günlük PGV katkısıyla
+                  üretilen <strong>Liderlik Puanı (pool_leadership_points)</strong> oranında
+                  dağıtılır.
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={v2Busy || systemFundBalance <= 0}
+                onClick={handleDynamicPoolDistribute}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg cursor-pointer disabled:opacity-50"
+              >
+                Dinamik Havuz Dağıtımını Şimdi Çalıştır ({systemFundBalance.toLocaleString('tr-TR')}{' '}
+                $)
+              </button>
+            </div>
+
+            <div className="overflow-x-auto border border-slate-200 rounded-xl">
+              <table className="w-full text-left border-collapse text-xs font-mono tabular-nums">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                    <th className="py-2.5 px-3">Bayi / Lider</th>
+                    <th className="py-2.5 px-3">Dönemsel Aktif Kariyer</th>
+                    <th className="py-2.5 px-3 text-right">30 Günlük PGV</th>
+                    <th className="py-2.5 px-3 text-right">Liderlik Puanı</th>
+                    <th className="py-2.5 px-3 text-right">Havuz Puan Oranı</th>
+                    <th className="py-2.5 px-3 text-right">Bugüne Kadar Havuz Kazancı</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {members
+                    .slice()
+                    .sort(
+                      (a, b) => (b.pool_leadership_points || 0) - (a.pool_leadership_points || 0)
+                    )
+                    .map((m) => {
+                      const pts = m.pool_leadership_points || 0;
+                      const sharePct =
+                        totalLeadershipPoints > 0
+                          ? Math.round((pts / totalLeadershipPoints) * 1000) / 10
+                          : 0;
+                      return (
+                        <tr key={m.user_id} className="hover:bg-slate-50">
+                          <td className="py-2.5 px-3">
+                            <span className="font-bold text-slate-900">#{m.global_line_id}</span>{' '}
+                            <span className="font-sans font-medium text-slate-800">
+                              {m.full_name}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-800">
+                            Kariyer Seviyesi {m.active_career_level || m.career_level}
+                          </td>
+                          <td className="py-2.5 px-3 text-right text-slate-700">
+                            {(m.rolling_30d_pgv ?? m.group_volume).toLocaleString('tr-TR')} $
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-bold text-slate-900">
+                            {pts} Puan
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-semibold text-emerald-700">
+                            %{sharePct}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-bold text-slate-900">
+                            {m.wallets.career_pool_wallet.toLocaleString('tr-TR', {
+                              minimumFractionDigits: 2,
+                            })}{' '}
+                            $
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* TAB 5: BULLMQ / REDIS ASYNC QUEUE MONITOR */}
         {activeV2Tab === 'BULLMQ_QUEUE' && (
           <div className="space-y-4">
@@ -1537,10 +1659,10 @@ async function handleOrderWebhook(req, res) {
 
                 <div className="p-3 rounded-xl border border-slate-200 bg-white space-y-0.5">
                   <div className="font-mono font-bold text-indigo-700">
-                    4 &amp; 5. Havuz 1 (%5 Sistem Havuzu) &amp; Havuz 2 (%20 Sponsor)
+                    4 &amp; 5. Havuz 1 (%50 Fon) &amp; Havuz 2 (%20 Sponsor)
                   </div>
                   <div className="text-slate-600">
-                    %5 <code className="font-mono">system_pool_balance</code> (
+                    %50 <code className="font-mono">system_pool_balance</code> (
                     <code className="font-mono">RELEASED</code>); %20 Sponsor{' '}
                     <code className="font-mono">pending_*_usd</code> (
                     <code className="font-mono">PENDING_14D</code>) veya{' '}
@@ -1553,7 +1675,7 @@ async function handleOrderWebhook(req, res) {
                     6. Havuz 3: %25 Monoline 7 Derinlik (active_career_level)
                   </div>
                   <div className="text-slate-600">
-                    <code className="font-mono">[0.07, 0.05, 0.04, 0.03, 0.02, 0.02, 0.02]</code>{' '}
+                    <code className="font-mono">[0.08, 0.06, 0.05, 0.04, 0.03, 0.02, 0.02]</code>{' '}
                     oranlarıyla <code className="font-mono">is_active</code> ve{' '}
                     <code className="font-mono">active_career_level &gt;= depth</code> kontrolü
                     yapılır.
@@ -1607,8 +1729,8 @@ const worker = new Worker('commission-processing', async (job) => {
     const releaseDate = new Date();
     releaseDate.setDate(releaseDate.getDate() + 14); // +14 Gün Cayma Süresi
 
-    // 4. HAVUZ 1: %5 Sistem Havuzu Aktarımı
-    const systemFund = order_amount * 0.05;
+    // 4. HAVUZ 1: %50 Sistem / Kariyer Fonu Aktarımı
+    const systemFund = order_amount * 0.50;
     await client.query('UPDATE system_wallet SET system_pool_balance = system_pool_balance + $1 WHERE id = 1', [systemFund]);
     await logComm(client, order_id, buyer.id, null, 'SYSTEM_POOL', null, systemFund, 'RELEASED', new Date());
 
@@ -2118,7 +2240,7 @@ const worker = new Worker('commission-processing', async (job) => {
               </div>
             </div>
 
-            {/* 2. Anti-Fraud & Risk Engine + 3. Gamification (Rank-Up Rewards) */}
+            {/* 2. Anti-Fraud & Risk Engine + 3. Gamification (Fast-Start & Rank-Up Rewards) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               <div className="lg:col-span-6 p-5 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2248,9 +2370,37 @@ const worker = new Worker('commission-processing', async (job) => {
                       3. LİDERLİK, MOTİVASYON &amp; OYUNLAŞTIRMA (SQL: user_rewards_log)
                     </div>
                     <h4 className="text-sm font-bold text-slate-900 mt-0.5">
-                      Kariyer Ödülleri (RANK_UP_GIFT)
+                      İlk 14 Gün Hızlı Başlangıç Bonusu (FAST_START) &amp; Kariyer Ödülleri (RANK_UP_GIFT)
                     </h4>
                   </div>
+                  <button
+                    type="button"
+                    disabled={v2Busy}
+                    onClick={async () => {
+                      setV2Busy(true);
+                      try {
+                        const res = await fetch('/api/v1/admin/rewards/trigger-fast-start', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            user_id: userId || members[0]?.user_id,
+                            cash_value: 2500,
+                          }),
+                        });
+                        const data = await res.json();
+                        setV2ActionBanner({
+                          type: res.ok ? 'success' : 'error',
+                          message: data.message,
+                        });
+                        if (onRefreshState) await onRefreshState();
+                      } finally {
+                        setV2Busy(false);
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg cursor-pointer disabled:opacity-50"
+                  >
+                    İlk 14G Hızlı Başlangıç Bonusu Tetikle (+2.500 $)
+                  </button>
                 </div>
 
                 <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white max-h-56 overflow-y-auto">
@@ -2268,7 +2418,8 @@ const worker = new Worker('commission-processing', async (job) => {
                       {userRewardsLog.length === 0 ? (
                         <tr>
                           <td colSpan={5} className="py-5 text-center text-slate-400 font-sans">
-                            Üye ilk kez kariyer atladığında (RANK_UP_GIFT) ödül burada listelenir.
+                            Üye ilk kez kariyer atladığında (RANK_UP_GIFT) veya ilk 14 günde 3 aktif
+                            direkt referans getirdiğinde (FAST_START) ödüller burada listelenir.
                           </td>
                         </tr>
                       ) : (
@@ -2461,17 +2612,17 @@ CREATE TABLE notification_outbox (
           </div>
         )}
 
-        {/* TAB 8: V2.2 6 ALTIN REVİZYON (UNILEVEL SONSUZLUK %10, LİDERLİK EŞLEŞME, DİNAMİK SIKIŞTIRMA, B2C PERAKENDE & VEYA ÇEKİM KURALI) */}
+        {/* TAB 8: V2.2 6 ALTIN REVİZYON (UNILEVEL SONSUZLUK %10, LİDERLİK EŞLEŞME, DİNAMİK SIKIŞTIRMA, FAST-ROI +%15, B2C PERAKENDE & VEYA ÇEKİM KURALI) */}
         {activeV2Tab === 'V22_GOLDEN_REVISIONS' && (
           <div className="space-y-6">
             <div className="p-5 bg-gradient-to-r from-slate-900 via-indigo-950 to-emerald-950 text-white rounded-2xl border border-emerald-500/30 space-y-5">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/15 pb-4">
                 <div>
                   <div className="text-xs font-mono font-bold text-emerald-300">
-                    🛠️ V2.2 6 ALTIN REVİZYON · %50 KOMİSYON DAĞITIMI &amp; %50 KAYIT DIŞI ŞİRKET MARJI
+                    🛠️ V2.2 6 ALTIN REVİZYON · OPTİMUM %40 ŞİRKET NET KÂRI &amp; %60 SAHA DAĞITIM MİMARİSİ
                   </div>
                   <h4 className="text-lg font-bold text-white mt-0.5">
-                    Monoline 7 Derinlik Duvarı Kırıldı · Esnek &ldquo;VEYA&rdquo; Çekim Kuralı
+                    Monoline 7 Derinlik Duvarı Kırıldı · 3 Getir Bedavaya Getir (%105 ROI) · Esnek &ldquo;VEYA&rdquo; Çekim Kuralı
                   </h4>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -2490,6 +2641,11 @@ CREATE TABLE notification_outbox (
                       key: 'matching_bonus_enabled' as const,
                       label: '2. %10-%25 Eşleşme Bonusu',
                       val: effectiveV2Config.matching_bonus_enabled !== false,
+                    },
+                    {
+                      key: 'fast_roi_3x15_enabled' as const,
+                      label: '3. +%15 Fast-ROI (3 Getir)',
+                      val: effectiveV2Config.fast_roi_3x15_enabled !== false,
                     },
                   ].map((item) => (
                     <button
@@ -2513,25 +2669,25 @@ CREATE TABLE notification_outbox (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-xs font-mono">
                 <div className="p-4 rounded-xl bg-white/10 border border-white/15 space-y-2">
                   <div className="text-amber-300 font-bold">
-                    1. ŞİRKET MARJI (KAYIT DIŞI, %50)
+                    1. ŞİRKET NET KÂRI &amp; FONU (%40 NET)
                   </div>
-                  <div className="text-2xl font-extrabold text-white">%50,00</div>
+                  <div className="text-2xl font-extrabold text-white">%40,00 + Devir</div>
                   <p className="font-sans text-slate-300 text-[11px] leading-relaxed">
-                    Ürün maliyeti ve operasyon giderleri bu paydan karşılanır. 1.780.000 $ ciroda şirkette{' '}
-                    <strong>890.000 $ (%50)</strong> kalır.
+                    Şirket operasyon marjı + devir havuzları. 1.780.000 $ ciroda şirket kasasına{' '}
+                    <strong>712.000 $+ (%40)</strong> net kâr kalır.
                   </p>
                 </div>
 
                 <div className="p-4 rounded-xl bg-emerald-500/15 border border-emerald-400/40 space-y-2">
                   <div className="text-emerald-300 font-bold">
-                    2. KOMİSYON DAĞITIMI (%50)
+                    2. SAHA DAĞITIMI (%60 OPTİMUM MOTİVASYON)
                   </div>
                   <div className="text-lg font-extrabold text-white">
                     %25 Monoline + %20/%15 Sponsor + %10 Sonsuzluk
                   </div>
                   <p className="font-sans text-emerald-100 text-[11px] leading-relaxed">
                     • <strong>%25 Monoline 7 Derinlik (7,5,4,3,2,2,2):</strong> Dinamik Sıkıştırmalı
-                    <br />• <strong>%20 Direkt Sponsor:</strong> Doğrudan sponsor primi
+                    <br />• <strong>%20 Direkt Sponsor + %15 Fast-ROI:</strong> 3 Getir Bedavaya Getir
                     <br />• <strong>%10 Unilevel Sonsuzluk &amp; %10-%25 Eşleşme:</strong> Zirve Lider Kaldıracı
                   </p>
                 </div>
@@ -2620,7 +2776,7 @@ const canWithdraw =
                     <thead>
                       <tr className="bg-slate-100 border-b border-slate-200 text-slate-600">
                         <th className="py-2 px-2.5">Lider / Mertebe</th>
-                        <th className="py-2 px-2.5 text-right">Sponsor</th>
+                        <th className="py-2 px-2.5 text-right">Sponsor + ROI</th>
                         <th className="py-2 px-2.5 text-right">Derinlik + Sonsuzluk</th>
                         <th className="py-2 px-2.5 text-right">Eşleşme + Havuz</th>
                         <th className="py-2 px-2.5 text-right">V2.2 Toplam Nakit</th>
@@ -2678,13 +2834,13 @@ const canWithdraw =
                     🚀 BÜYÜMEYİ 2-3 KATINA ÇIKARAN 5 STRATEJİK İYİLEŞTİRME ÖNERİSİ (CANLI MODÜLLER)
                   </span>
                   <h4 className="text-base sm:text-lg font-extrabold text-white mt-1">
-                    1️⃣ 48s FOMO Sayacı · 2️⃣ Hibrit Dinamik Sıkıştırma · 3️⃣ P2P &amp; Kupon · 4️⃣ WhatsApp Business Story
+                    1️⃣ 48s FOMO Sayacı · 2️⃣ Hibrit Dinamik Sıkıştırma · 3️⃣ P2P &amp; Kupon · 4️⃣ İlk 30 Gün Duble Bonus · 5️⃣ WhatsApp Business Story
                   </h4>
                 </div>
               </div>
 
               {/* 5 Stratejik İyileştirme Admin Kontrol Kartları */}
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
                 {/* 1️⃣ 48 Saatlik Geri Sayım & FOMO */}
                 <div className="p-3.5 rounded-xl bg-red-950/50 border border-red-500/40 space-y-2 flex flex-col justify-between">
                   <div className="space-y-1">
@@ -2777,11 +2933,44 @@ const canWithdraw =
                   </button>
                 </div>
 
-                {/* 4️⃣ WhatsApp Business API & Push Story */}
+                {/* 4️⃣ İlk 30 Gün Hoş Geldin Duble Bonusu */}
+                <div className="p-3.5 rounded-xl bg-purple-950/50 border border-purple-500/40 space-y-2 flex flex-col justify-between">
+                  <div className="space-y-1">
+                    <div className="text-[11px] font-mono font-bold text-purple-300">
+                      4️⃣ İLK 30 GÜN DUBLE BONUS (2X)
+                    </div>
+                    <p className="text-[11px] text-slate-200 leading-relaxed">
+                      14 günlük 2.500 $ Fast-Start süresini <strong>30 güne esnetir</strong> ve <strong>5.000 $ Hoş Geldin Duble Bonusu</strong> verir.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={v2Busy}
+                    onClick={() =>
+                      handleUpdateV2Config({
+                        welcome_30d_double_bonus_enabled:
+                          effectiveV2Config.welcome_30d_double_bonus_enabled === false,
+                        fast_start_window_days:
+                          effectiveV2Config.welcome_30d_double_bonus_enabled === false ? 30 : 14,
+                      })
+                    }
+                    className={`w-full py-1.5 rounded-lg text-[11px] font-bold cursor-pointer ${
+                      effectiveV2Config.welcome_30d_double_bonus_enabled !== false
+                        ? 'bg-amber-400 text-slate-950'
+                        : 'bg-slate-700 text-slate-300'
+                    }`}
+                  >
+                    {effectiveV2Config.welcome_30d_double_bonus_enabled !== false
+                      ? '✓ 30 Gün Duble Bonus (5.000 $): AÇIK'
+                      : 'Standart 14 Gün (2.500 $): AÇIK'}
+                  </button>
+                </div>
+
+                {/* 5️⃣ WhatsApp Business API & Push Story */}
                 <div className="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 space-y-2 flex flex-col justify-between">
                   <div className="space-y-1">
                     <div className="text-[11px] font-mono font-bold text-emerald-300">
-                      4️⃣ WHATSAPP BUSINESS &amp; STORY
+                      5️⃣ WHATSAPP BUSINESS &amp; STORY
                     </div>
                     <p className="text-[11px] text-slate-200 leading-relaxed">
                       Komisyon yattığı an bayiye <strong>WhatsApp Business API</strong> mesajı ve <strong>Instagram/WA Story kartı</strong> gönderir.

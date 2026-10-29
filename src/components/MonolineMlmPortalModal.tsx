@@ -347,6 +347,23 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
     );
   };
 
+  const handleDistributePool = async () => {
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/v1/career-pool/distribute', {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Havuz dağıtımı başarısız.');
+      setState(data.state);
+      showNotice('success', data.message);
+    } catch (err: any) {
+      showNotice('error', err?.message || 'Kariyer havuzu dağıtılırken hata oluştu.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleToggleDepthLock = async (enforce: boolean) => {
     setIsSubmitting(true);
     try {
@@ -647,6 +664,35 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
     } catch (err: any) {
       showNotice('error', err?.message || 'Geri yükleme hatası.');
       return false;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handlePayoutCareerBonus = async (payload: {
+    career_level?: number | 'ALL';
+    bonus_amount?: number;
+    tier_bonuses?: Record<number, number>;
+    match_mode?: 'EXACT_LEVEL' | 'MIN_LEVEL';
+    target_user_id?: string;
+    note?: string;
+  }) => {
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/v1/admin/bonuses/career-payout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Kariyer bonusu aktarılamadı.');
+      setState(data.state);
+      showNotice('success', data.message);
+    } catch (err: any) {
+      showNotice('error', err?.message || 'Kariyer bonusu aktarılırken hata oluştu.');
     } finally {
       setIsSubmitting(false);
     }
@@ -1193,7 +1239,7 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
                       Monoline 7 Nefis MLM Kariyer Matrisi &amp; Havuz Sistemi
                     </h2>
                     <p className="text-xs sm:text-sm text-emerald-100/90 max-w-3xl">
-                      Kariyer seviyeleri boyunca ilerleyen basamaklar ve derinlik kilidi kuralları.
+                      Kariyer seviyeleri boyunca ilerleyen basamaklar, derinlik kilidi kuralları ve kariyer havuzu dağıtım tablosu.
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2 shrink-0">
@@ -1229,8 +1275,10 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
                   careerTiers={state.career_tiers}
                   selectedMemberId={selectedMemberId}
                   onSelectMember={(id) => setSelectedMemberId(id)}
+                  systemFundBalance={state.system_metrics.system_career_fund_balance}
+                  poolDistributions={state.pool_distributions}
                   cronLogs={state.cron_logs}
-
+                  onDistributePool={handleDistributePool}
                   onBoostMemberCareer={handleBoostMemberCareer}
                   onTriggerCron={handleTriggerCareerCronJob}
                   isSubmitting={isSubmitting}
@@ -1250,7 +1298,7 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
                       Monoline 7 Nefis MLM &amp; Komisyon Dağıtım ve Muhasebe Merkezi
                     </h2>
                     <p className="text-xs sm:text-sm text-slate-300 max-w-3xl">
-                      %{state.distribution_params.direct_sponsor_percent} Direkt Sponsor Primi, %{state.distribution_params.monoline_total_percent} 7 Kademe Monoline Primi ve %{state.distribution_params.system_fund_percent} Sistem Havuzu hesaplama motoru ve işlem defteri.
+                      %{state.distribution_params.direct_sponsor_percent} Direkt Sponsor Primi, %{state.distribution_params.monoline_total_percent} 7 Kademe Monoline Primi ve %{state.distribution_params.system_fund_percent} Kariyer Havuzu hesaplama motoru ve işlem defteri.
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2 shrink-0">
@@ -1371,6 +1419,8 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
                 systemWallet={state.system_wallet}
                 ordersLog={state.orders_log}
                 cronLogs={state.cron_logs}
+                poolDistributions={state.pool_distributions}
+                systemFundBalance={state.system_metrics.system_career_fund_balance}
                 idempotentBlockedCount={state.system_metrics.idempotent_blocked_count}
                 initialSection={adminSection}
                 onUpdateCareers={handleUpdateCareers}
@@ -1378,6 +1428,8 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
                 onMemberActivityAction={handleMemberActivityAction}
                 onDecideWithdrawal={handleDecideWithdrawal}
                 onBulkApproveWithdrawals={handleBulkApproveWithdrawals}
+                onDistributePool={handleDistributePool}
+                onPayoutCareerBonus={handlePayoutCareerBonus}
                 onRegisterMember={handleRegisterMember}
                 onAdminUpdateMember={handleAdminUpdateMember}
                 onAdminDeleteMember={handleAdminDeleteMember}
@@ -1433,8 +1485,10 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
                   careerTiers={state.career_tiers}
                   selectedMemberId={selectedMemberId}
                   onSelectMember={(id) => setSelectedMemberId(id)}
+                  systemFundBalance={state.system_metrics.system_career_fund_balance}
+                  poolDistributions={state.pool_distributions}
                   cronLogs={state.cron_logs}
-
+                  onDistributePool={handleDistributePool}
                   onBoostMemberCareer={handleBoostMemberCareer}
                   onTriggerCron={handleTriggerCareerCronJob}
                   isSubmitting={isSubmitting}

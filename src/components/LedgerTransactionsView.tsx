@@ -34,7 +34,7 @@ export const LedgerTransactionsView: React.FC<LedgerTransactionsViewProps> = ({
               Sipariş & Komisyon Dağıtım Hareketleri ({transactions.length})
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Detaylı 7 derinlik (%7-%5-%4-%3-%2-%2-%2), direkt sponsor (%20) ve sistem havuzu (%5)
+              Detaylı 7 derinlik (%7-%5-%4-%3-%2-%2-%2), direkt sponsor (%20) ve fon (%50)
               dağılımını incelemek için bir siparişe tıklayın.
             </p>
           </div>
@@ -130,7 +130,7 @@ export const LedgerTransactionsView: React.FC<LedgerTransactionsViewProps> = ({
               {/* 3 Main Buckets Summary */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                  <div className="text-slate-500">Sistem Havuzu (%5)</div>
+                  <div className="text-slate-500">Sistem / Kariyer Fonu (%50)</div>
                   <div className="text-base font-bold font-mono tabular-nums text-slate-900 mt-1">
                     {activeTx.system_fund_base_amount.toLocaleString('tr-TR', {
                       minimumFractionDigits: 2,
@@ -254,6 +254,7 @@ export const LedgerTransactionsView: React.FC<LedgerTransactionsViewProps> = ({
                 <th className="py-3 px-3 text-right">Monoline Grup Hacmi</th>
                 <th className="py-3 px-3 text-right">Sponsor Cüzdanı (%20)</th>
                 <th className="py-3 px-3 text-right">Monoline Cüzdanı (%25)</th>
+                <th className="py-3 px-3 text-right">Kariyer Havuz Bonusu</th>
                 <th className="py-3 pl-3 text-right">Toplam Kazanç</th>
               </tr>
             </thead>
@@ -290,6 +291,12 @@ export const LedgerTransactionsView: React.FC<LedgerTransactionsViewProps> = ({
                   </td>
                   <td className="py-3 px-3 text-right text-amber-700 font-medium">
                     {m.wallets.monoline_wallet.toLocaleString('tr-TR', {
+                      minimumFractionDigits: 2,
+                    })}{' '}
+                    $
+                  </td>
+                  <td className="py-3 px-3 text-right text-slate-700">
+                    {m.wallets.career_pool_wallet.toLocaleString('tr-TR', {
                       minimumFractionDigits: 2,
                     })}{' '}
                     $

@@ -31,7 +31,6 @@ import {
   X,
   Zap,
   MessageSquare,
-  FileText,
   HelpCircle,
   LifeBuoy,
 } from 'lucide-react';
@@ -61,16 +60,13 @@ import {
 } from '../utils/monolineSyncBridge';
 import { getMemberWalletToken } from '../utils/authManager';
 import {
-  MEMBER_COUNTRY_OPTIONS,
   getActivationPriceForRegion,
   getMemberRegionalPendingUsd,
   getMemberRegionalUsdBalance,
-  getPackagePriceForRegion,
   resolveMemberRegion,
 } from '../utils/walletRegion';
 import { recordUserContractApprovals } from '../utils/paymentProcessor';
 import { DealerRegionalUsdPanel } from './DealerRegionalUsdPanel';
-import { DealerDocumentsView } from './DealerDocumentsView';
 
 interface DealerBackOfficeViewProps {
   members: MonolineMember[];
@@ -223,7 +219,7 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
   feedbackTickets = [],
 }) => {
   const [subTab, setSubTab] = useState<
-    'wallet' | 'activity' | 'referral' | 'network' | 'security' | 'plaque' | 'feedback' | 'documents'
+    'wallet' | 'activity' | 'referral' | 'network' | 'security' | 'plaque' | 'feedback'
   >('wallet');
   const [activeRegionPanel, setActiveRegionPanel] = useState<MemberRegion | null>(null);
 
@@ -1197,13 +1193,8 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
   const [walletSubDealerEmail, setWalletSubDealerEmail] = useState<string>('');
   const [walletSubDealerPhone, setWalletSubDealerPhone] = useState<string>('');
   const [walletSubDealerCity, setWalletSubDealerCity] = useState<string>('İstanbul');
-  const [walletSubDealerCountry, setWalletSubDealerCountry] = useState<string>('TR');
   const [walletSubDealerPkgId, setWalletSubDealerPkgId] =
     useState<Exclude<PackageId, 'CUSTOM'>>('PKG_MINI_DENEME');
-  const walletSubDealerPrice = getPackagePriceForRegion(
-    PACKAGES[walletSubDealerPkgId].defaultPrice,
-    resolveMemberRegion(walletSubDealerCountry)
-  );
   const [walletSubDealerPassword, setWalletSubDealerPassword] = useState<string>('');
   const [showWalletSubDealerPassword, setShowWalletSubDealerPassword] = useState<boolean>(false);
   const [walletSubDealerLeg, setWalletSubDealerLeg] = useState<'LEFT' | 'RIGHT' | 'AUTO'>('AUTO');
@@ -1407,7 +1398,7 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
         user_id: member.user_id,
         user_name: member.full_name,
         order_id: orderId,
-        order_amount: walletSubDealerPrice,
+        order_amount: pkg.defaultPrice,
         product_summary: `Yeni bayi ${walletSubDealerName.trim()} · ${pkg.name} · ${pkg.sessionCreditsLabel}`,
         contracts: ['DISTANCE_SALES', 'PRE_INFORMATION', 'MLM_TERMS', 'KVKK'],
         version: 'v2.2',
@@ -1426,7 +1417,6 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
           email: walletSubDealerEmail.trim() || undefined,
           phone: walletSubDealerPhone.trim() || undefined,
           city: walletSubDealerCity.trim() || 'İstanbul',
-          country_code: walletSubDealerCountry,
           initial_package_id: walletSubDealerPkgId,
           password: walletSubDealerPassword.trim(),
           assigned_leg: walletSubDealerLeg,
@@ -1710,6 +1700,8 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
         totalVol: 0,
         reqVol: 5000,
         missingVol: 5000,
+        fastRoiCount: 0,
+        missingFastRoi: 3,
         nextTierLevel: 2,
       };
     }
@@ -1774,6 +1766,8 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
     );
     const missingVol = Math.max(0, reqVol - totalVol);
 
+    const fastRoiCount = Math.min(3, activeDirects);
+    const missingFastRoi = Math.max(0, 3 - activeDirects);
 
     return {
       leftMembers,
@@ -1791,6 +1785,8 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
       totalVol,
       reqVol,
       missingVol,
+      fastRoiCount,
+      missingFastRoi,
       nextTierLevel: nextTier.level,
     };
   }, [member, downlineSubDealers]);
@@ -2302,18 +2298,6 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
           >
             <Award className="w-3.5 h-3.5 text-amber-700" />
             <span>6. Kariyer Tebrik Belgesi &amp; Plaketi (İndirilebilir)</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setSubTab('documents')}
-            className={`px-3.5 py-2 text-xs font-bold rounded-md transition-all cursor-pointer whitespace-nowrap inline-flex items-center gap-1.5 ${
-              subTab === 'documents'
-                ? 'bg-slate-900 text-white shadow-xs ring-2 ring-slate-400/50'
-                : 'bg-slate-200 text-slate-900 hover:bg-slate-300 border border-slate-300'
-            }`}
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>8. Dokümanlar</span>
           </button>
           <button
             type="button"
@@ -2990,20 +2974,6 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-slate-300 font-semibold mb-1">Ülke</label>
-                      <select
-                        value={walletSubDealerCountry}
-                        onChange={(e) => setWalletSubDealerCountry(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-white/20 text-white"
-                      >
-                        {MEMBER_COUNTRY_OPTIONS.map((option) => (
-                          <option key={option.code} value={option.code}>
-                            {option.label} ({option.code}) {option.code === 'TR' ? '· 1x' : '· 3x'}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
                       <label className="block text-slate-300 font-semibold mb-1">
                         E-Posta Adresi
                       </label>
@@ -3126,14 +3096,16 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
                     <div className="flex justify-between py-1.5 border-b border-white/10">
                       <span className="text-slate-300">Cüzdanınızdan Ödenecek:</span>
                       <strong className="text-amber-300 text-sm">
-                        {walletSubDealerPrice.toLocaleString('tr-TR')} $
+                        {PACKAGES[walletSubDealerPkgId]?.defaultPrice.toLocaleString('tr-TR')} $
                       </strong>
                     </div>
                     <div className="flex justify-between py-1.5 border-b border-white/10">
                       <span className="text-slate-300">Size Dönecek %20 Sponsor Primi:</span>
                       <strong className="text-emerald-400">
                         +
-                        {Math.round(walletSubDealerPrice * 0.2).toLocaleString('tr-TR')}{' '}
+                        {Math.round(
+                          (PACKAGES[walletSubDealerPkgId]?.defaultPrice || 5000) * 0.2
+                        ).toLocaleString('tr-TR')}{' '}
                         $
                       </strong>
                     </div>
@@ -3155,7 +3127,9 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
                   >
                     {walletOpsBusy
                       ? 'Kaydediliyor...'
-                      : `👤 Cüzdanımdan Öde (${walletSubDealerPrice.toLocaleString('tr-TR')} $) & Yeni Bayiyi Ekle`}
+                      : `👤 Cüzdanımdan Öde (${PACKAGES[
+                          walletSubDealerPkgId
+                        ]?.defaultPrice.toLocaleString('tr-TR')} $) & Yeni Bayiyi Ekle`}
                   </button>
                 </div>
               </form>
@@ -3634,7 +3608,7 @@ Paket Alarak Aktifliği Yenile →
                           )}
                           {log.commission_type === 'FAST_ROI_BONUS' && (
                             <span className="text-teal-700 font-bold">
-                              Eski Fast-ROI Kaydı (Geçmiş)
+                              3 Getir Bedavaya Getir (+%15 Fast-ROI)
                             </span>
                           )}
                           {log.commission_type === 'MONOLINE_DEPTH' && (
@@ -4377,6 +4351,17 @@ Paket Alarak Aktifliği Yenile →
                       : `Eksik: ${branchAndQualificationStats.missingVol.toLocaleString('tr-TR')} $`}
                   </div>
                 </div>
+                <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+                  <div className="text-[10px] text-slate-400">3 Getir Bedavaya Getir (+%15)</div>
+                  <div className="text-sm font-bold text-white mt-0.5">
+                    {branchAndQualificationStats.fastRoiCount} / 3 Direkt Satış
+                  </div>
+                  <div className="text-[10px] text-teal-300">
+                    {branchAndQualificationStats.missingFastRoi === 0
+                      ? '✓ +%15 Fast-ROI Kazanıldı'
+                      : `Eksik: ${branchAndQualificationStats.missingFastRoi} Direkt Satış`}
+                  </div>
+                </div>
               </div>
 
               <div className="p-4 rounded-xl bg-white border border-slate-200 text-xs text-slate-800 space-y-1">
@@ -4979,7 +4964,7 @@ Paket Alarak Aktifliği Yenile →
                     {selectedPlaqueTier.level}. KARİYER SEVİYESİ
                   </div>
                   <div className="text-xs text-amber-100/90 mt-1 font-medium">
-                    {selectedPlaqueTier.subtitle}
+                    {selectedPlaqueTier.subtitle} · {selectedPlaqueTier.poolBonusLabel}
                   </div>
                 </div>
 
@@ -5081,8 +5066,6 @@ Paket Alarak Aktifliği Yenile →
       )}
 
       {/* SUB-TAB: 💬 ŞİKAYETLER VE ÖNERİLER (YÖNETİCİYE DOĞRUDAN İLETİM & GERİ BİLDİRİM PANELİ) */}
-      {subTab === 'documents' && <DealerDocumentsView />}
-
       {subTab === 'feedback' && (
         <div className="space-y-8">
           {/* Üst Karşılama Kartı */}
