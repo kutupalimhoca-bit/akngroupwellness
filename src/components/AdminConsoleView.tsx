@@ -29,7 +29,6 @@ import {
   Upload,
   UserPlus,
   Users,
-  Wallet,
   X,
   Zap,
   MessageSquare,
@@ -58,7 +57,6 @@ import {
   P2PTransferRecord,
   PACKAGES,
   PackageId,
-  PoolDistributionRecord,
   SystemDistributionParameters,
   SystemWalletRecord,
   TaxRefundInvoiceRecord,
@@ -106,8 +104,6 @@ interface AdminConsoleViewProps {
   systemWallet?: SystemWalletRecord;
   ordersLog?: OrderLogRecord[];
   cronLogs: CronJobExecutionRecord[];
-  poolDistributions: PoolDistributionRecord[];
-  systemFundBalance: number;
   idempotentBlockedCount: number;
   initialSection?: AdminConsoleSection;
   onUpdateCareers: (tiers: CareerTier[]) => Promise<void>;
@@ -117,7 +113,6 @@ interface AdminConsoleViewProps {
     note?: string
   ) => Promise<void>;
   onBulkApproveWithdrawals: () => Promise<void>;
-  onDistributePool: () => Promise<void>;
   onAdminUpdateMember: (
     userId: string,
     payload: {
@@ -157,14 +152,6 @@ interface AdminConsoleViewProps {
     skip_initial_order?: boolean;
     assigned_leg?: 'LEFT' | 'RIGHT' | 'AUTO';
     password?: string;
-  }) => Promise<void>;
-  onPayoutCareerBonus?: (payload: {
-    career_level?: number | 'ALL';
-    bonus_amount?: number;
-    tier_bonuses?: Record<number, number>;
-    match_mode?: 'EXACT_LEVEL' | 'MIN_LEVEL';
-    target_user_id?: string;
-    note?: string;
   }) => Promise<void>;
   onTriggerTestErrorWebhook: () => Promise<void>;
   onTriggerIdempotencyDuplicateWebhook: () => Promise<void>;
@@ -207,7 +194,7 @@ CREATE TABLE wallets (
 -- 3. SİSTEM ŞİRKET VE DEVİR HAVUZU
 CREATE TABLE system_wallet (
     id INT PRIMARY KEY DEFAULT 1,
-    system_pool_balance NUMERIC(15,2) DEFAULT 0.00,       -- %50 Fon
+    system_pool_balance NUMERIC(15,2) DEFAULT 0.00,       -- %5 Sistem Havuzu
     unclaimed_pool_balance NUMERIC(15,2) DEFAULT 0.00,     -- Yetkisizlik/Pasiflikten Devredenler
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -261,21 +248,17 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
   systemWallet,
   ordersLog = [],
   cronLogs,
-  poolDistributions,
-  systemFundBalance,
   idempotentBlockedCount,
   initialSection = 'members',
   onUpdateCareers,
   onDecideWithdrawal,
   onBulkApproveWithdrawals,
-  onDistributePool,
   onAdminUpdateMember,
   onAdminDeleteMember,
   onResetSystem,
   onExportData,
   onRestoreData,
   onRegisterMember,
-  onPayoutCareerBonus,
   onTriggerTestErrorWebhook,
   onTriggerIdempotencyDuplicateWebhook,
   onTriggerCareerCronJob,
@@ -334,27 +317,6 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
   const [showNewDealerPassword, setShowNewDealerPassword] = useState<boolean>(false);
   const [newDealerLeg, setNewDealerLeg] = useState<'LEFT' | 'RIGHT' | 'AUTO'>('AUTO');
 
-  // Career Bonus Management State
-  const [tierBonusAmounts, setTierBonusAmounts] = useState<Record<number, number>>(() => {
-    const initial: Record<number, number> = {};
-    for (const t of careerTiers) {
-      initial[t.level] = t.fixedCareerBonusAmount ?? t.level * 2500;
-    }
-    return initial;
-  });
-  const [bonusMatchMode, setBonusMatchMode] = useState<'EXACT_LEVEL' | 'MIN_LEVEL'>('EXACT_LEVEL');
-  const [customBonusTargetUserId, setCustomBonusTargetUserId] = useState<string>('');
-  const [customBonusAmount, setCustomBonusAmount] = useState<number>(2500);
-  const [customBonusNote, setCustomBonusNote] = useState<string>('Yönetici Özel Kariyer & Performans Bonusu');
-
-  React.useEffect(() => {
-    const next: Record<number, number> = {};
-    for (const t of careerTiers) {
-      next[t.level] = t.fixedCareerBonusAmount ?? tierBonusAmounts[t.level] ?? t.level * 2500;
-    }
-    setTierBonusAmounts(next);
-  }, [careerTiers]);
-
   // Dynamic career tiers state
   const [editableTiers, setEditableTiers] = useState<CareerTier[]>(() =>
     structuredClone(careerTiers)
@@ -388,7 +350,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
   const [bonusCreditTargetUserId, setBonusCreditTargetUserId] = useState<string>('');
   const [bonusCreditAmount, setBonusCreditAmount] = useState<number>(250);
   const [bonusCreditNote, setBonusCreditNote] = useState<string>(
-    'Yönetici Özel Kariyer Başarı Bonusu'
+    'Yönetici Özel Seans Kredisi Bonusu'
   );
   const [bonusCreditBusy, setBonusCreditBusy] = useState<boolean>(false);
   const [bonusCreditFeedback, setBonusCreditFeedback] = useState<{
@@ -429,7 +391,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
         body: JSON.stringify({
           target_user_id: targetUserId,
           credit_amount: credits,
-          note: note || 'Yönetici Kariyer Bonusu',
+          note: note || 'Yönetici Seans Kredisi Bonusu',
         }),
       });
       const data = await res.json();
@@ -665,22 +627,6 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
     }
   };
 
-  const handleAdminTriggerWelcomeDoubleBonus = async () => {
-    setStrategicBusy(true);
-    try {
-      const res = await fetch('/api/v1/admin/rewards/trigger-welcome-double-bonus', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: strategicTargetUserId }),
-      });
-      const data = await res.json();
-      showStrategicFeedback(data.message || 'İlk 30 Gün Duble Bonus tanımlandı.');
-      if (onRefreshState) await onRefreshState();
-    } finally {
-      setStrategicBusy(false);
-    }
-  };
-
   const handleAdminTriggerWhatsAppPush = async () => {
     setStrategicBusy(true);
     try {
@@ -739,6 +685,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
   }, [careerTiers]);
 
   const sortedMembers = [...members].sort((a, b) => a.global_line_id - b.global_line_id);
+  const systemPoolBalance = systemWallet?.system_pool_balance ?? 0;
 
   React.useEffect(() => {
     if (adminSection !== 'params') return;
@@ -941,15 +888,6 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
     setNewDealerLeg('AUTO');
   };
 
-  const handleSaveTierBonusAmountsToCareers = async () => {
-    const updated = editableTiers.map((t) => ({
-      ...t,
-      fixedCareerBonusAmount: Number(tierBonusAmounts[t.level] ?? t.fixedCareerBonusAmount ?? 1000),
-    }));
-    setEditableTiers(updated);
-    await onUpdateCareers(updated);
-  };
-
   // Ağ, Ekip & Kol Dengesi Düzenleme Handlers
   const handleOpenMemberEditor = (m: MonolineMember) => {
     setEditingMember(m);
@@ -1004,9 +942,9 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
         careerTiers: editableTiers,
         v2ArchitectureConfig: v2Config,
         systemWallet,
-        systemCareerFundBalance: systemFundBalance,
-        systemCareerFundCumulative: systemFundBalance,
-        systemFundBalance,
+        systemCareerFundBalance: systemPoolBalance,
+        systemCareerFundCumulative: systemPoolBalance,
+        systemPoolBalance,
         commissionLogs,
         ordersLog,
         withdrawalRequests,
@@ -1019,7 +957,6 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
         activationVouchers,
         webhookLogs: webhookLogs.slice(0, 100),
         cronLogs,
-        poolDistributions,
       },
     };
   };
@@ -1036,7 +973,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
     ordersLog,
     withdrawalRequests,
     systemWallet,
-    systemFundBalance,
+    systemPoolBalance,
 
     taxRefundInvoices,
     userRewardsLog,
@@ -1047,7 +984,6 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
     activationVouchers,
     webhookLogs,
     cronLogs,
-    poolDistributions,
     v2Config,
   ]);
 
@@ -1168,11 +1104,6 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
     setShowResetWarningModal(false);
   };
 
-  const totalCareerBonusesPaid = sortedMembers.reduce(
-    (sum, m) => sum + (m.wallets.career_pool_wallet || 0),
-    0
-  );
-
   return (
     <div className="space-y-8">
       {/* MODÜL 6 Header & Sub-navigation */}
@@ -1182,7 +1113,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
             TAM SAYFA YÖNETİCİ KONSOLU · MONOLINE 7 NEFİS MLM · BAYİ, HAT SIRALAMA & BONUS YÖNETİMİ
           </div>
           <h2 className="text-xl font-bold text-slate-900 mt-0.5">
-            Bayi Ekleme/Silme, Monoline Sıra & Sponsor Değiştirme, Kariyer Bonus Yönetimi & SQL
+            Bayi Ekleme/Silme, Monoline Sıra & Sponsor Değiştirme, Bonus Kredileri & SQL
           </h2>
           <div className="flex flex-wrap items-center gap-2 mt-3">
             <button
@@ -1243,7 +1174,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
             }`}
           >
             <Gift className="w-3.5 h-3.5" />
-            <span>2. Bonus Yönetimi (Anında Cüzdana Aktar)</span>
+            <span>2. Bonus Kredi Yükle</span>
           </button>
           <button
             type="button"
@@ -1387,7 +1318,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                   <span>🚀 YÖNETİCİ KONTROL MERKEZİ · BÜYÜMEYİ 2-3 KATINA ÇIKARAN 5 STRATEJİK İYİLEŞTİRME ÖNERİSİ (CANLI MODÜLLER)</span>
                 </div>
                 <h3 className="text-xl font-bold text-white">
-                  1️⃣ 48s FOMO Sayacı · 2️⃣ Hibrit Dinamik Sıkıştırma · 3️⃣ P2P &amp; Kupon · 4️⃣ İlk 30 Gün Duble Bonus · 5️⃣ WhatsApp Business Story
+                  1️⃣ 48s FOMO Sayacı · 2️⃣ Hibrit Dinamik Sıkıştırma · 3️⃣ P2P &amp; Kupon · 4️⃣ WhatsApp Business Story
                 </h3>
                 <p className="text-xs text-slate-300 mt-1">
                   Bayi panelinde yer almaması gereken tüm stratejik büyüme motoru ayarları, V2.2 altın revizyon şalterleri, P2P kupon üretimi ve İade/Cayma (Clawback) yönetimi yalnızca bu Yönetici Paneli sekmesinden kontrol edilir.
@@ -1463,56 +1394,6 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                     }`}
                   >
                     {v2Config.unilevel_infinity_enabled ? 'AKTİF' : 'PASİF'}
-                  </button>
-                </div>
-
-                <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 flex items-center justify-between gap-2">
-                  <div>
-                    <div className="text-xs font-bold text-white">%10+%5 Hızlı Başlangıç (Fast-Start)</div>
-                    <div className="text-[11px] text-slate-400">
-                      2. ve 3. kademe sponsor hızlı amortisman primi
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={strategicBusy}
-                    onClick={() =>
-                      handleAdminToggleV2Config({
-                        fast_roi_3x15_enabled: !v2Config.fast_roi_3x15_enabled,
-                      })
-                    }
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer ${
-                      v2Config.fast_roi_3x15_enabled
-                        ? 'bg-emerald-500 text-slate-950'
-                        : 'bg-slate-700 text-slate-300'
-                    }`}
-                  >
-                    {v2Config.fast_roi_3x15_enabled ? 'AKTİF' : 'PASİF'}
-                  </button>
-                </div>
-
-                <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 flex items-center justify-between gap-2">
-                  <div>
-                    <div className="text-xs font-bold text-white">İlk 30 Gün Duble Bonus (%25)</div>
-                    <div className="text-[11px] text-slate-400">
-                      Yeni bayilere ilk 30 gün %25 sponsor + 2.000 $ ödül
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={strategicBusy}
-                    onClick={() =>
-                      handleAdminToggleV2Config({
-                        welcome_30d_double_bonus_enabled: !v2Config.welcome_30d_double_bonus_enabled,
-                      })
-                    }
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer ${
-                      v2Config.welcome_30d_double_bonus_enabled
-                        ? 'bg-amber-400 text-slate-950'
-                        : 'bg-slate-700 text-slate-300'
-                    }`}
-                  >
-                    {v2Config.welcome_30d_double_bonus_enabled ? 'AKTİF' : 'PASİF'}
                   </button>
                 </div>
               </div>
@@ -1616,7 +1497,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                       {
                         mode: 'FUND_SWEEP',
                         title: '%100 Sistem Havuzu',
-                        desc: 'Pasif/yetkisiz üyelerin primi tamamen şirket kariyer havuzuna devredilir.',
+                        desc: 'Pasif/yetkisiz üyelerin primi sistem havuzunda kalır ve yönetici kontrolünde tutulur; bayiye otomatik dağıtılmaz.',
                       },
                       {
                         mode: 'HYBRID_50_50',
@@ -1811,41 +1692,22 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                 </div>
               </div>
 
-              {/* 4️⃣ İlk 30 Gün Duble Bonus & 5️⃣ WhatsApp Business API + İade/Clawback */}
+              {/* 4️⃣ WhatsApp Business API + İade/Clawback */}
               <div className="lg:col-span-5 bg-white/5 border border-white/15 rounded-2xl p-5 space-y-4">
                 <div className="space-y-3">
                   <div>
                     <span className="px-2 py-0.5 rounded bg-amber-500/30 text-amber-200 text-[10px] font-mono font-bold">
-                      4️⃣ &amp; 5️⃣ STRATEJİK ÖNERİ + CLAWBACK KONTROLÜ
+                      4️⃣ STRATEJİK ÖNERİ + CLAWBACK KONTROLÜ
                     </span>
                     <h4 className="text-base font-bold text-white mt-1">
-                      İlk 30 Gün Duble Bonus, WhatsApp Business API &amp; İade/Cayma (Clawback)
+                      WhatsApp Business API &amp; İade/Cayma (Clawback)
                     </h4>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-slate-900/90 border border-amber-400/30 flex items-center justify-between gap-3 text-xs">
-                    <div>
-                      <div className="font-bold text-amber-300">
-                        4️⃣ İlk 30 Gün Duble Bonus (+2.000 $ Hoşgeldin)
-                      </div>
-                      <div className="text-[11px] text-slate-400">
-                        Seçili bayiye İlk 30 Gün 2 Aktif Üye +2.000 $ nakit ödülünü anında tanımla
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={strategicBusy}
-                      onClick={handleAdminTriggerWelcomeDoubleBonus}
-                      className="px-3 py-2 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs cursor-pointer shrink-0"
-                    >
-                      +2.000 $ Tanımla
-                    </button>
                   </div>
 
                   <div className="p-3 rounded-xl bg-slate-900/90 border border-emerald-400/30 flex items-center justify-between gap-3 text-xs">
                     <div>
                       <div className="font-bold text-emerald-300">
-                        5️⃣ WhatsApp Business API &amp; Story Bildirimi
+                        4️⃣ WhatsApp Business API &amp; Story Bildirimi
                       </div>
                       <div className="text-[11px] text-slate-400">
                         Seçili bayiye otomatik WhatsApp Business tebrik mesajı gönder ({notificationOutbox.length} kayıt)
@@ -2511,35 +2373,6 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                       </span>
                     </div>
 
-                    <div>
-                      <label className="block text-[11px] font-bold text-indigo-800 mb-1">
-                        Derinlik &amp; Havuz Payı (%)
-                      </label>
-                      <div className="flex items-center gap-1.5">
-                        <span className="px-2 py-1.5 bg-slate-200 text-slate-800 rounded-lg text-xs font-bold shrink-0">
-                          {tier.unlockedDepth}. Derinlik (%{tier.depthCommissionPercent})
-                        </span>
-                        <input
-                          type="number"
-                          min={1}
-                          max={50}
-                          step={1}
-                          value={Math.round(tier.poolBonusRate * 100)}
-                          onChange={(e) => {
-                            const next = [...editableTiers];
-                            next[idx] = {
-                              ...next[idx],
-                              poolBonusRate: Number(e.target.value) / 100,
-                            };
-                            setEditableTiers(next);
-                          }}
-                          className="w-16 px-2 py-1.5 text-xs font-mono text-right bg-white border border-slate-300 rounded-lg"
-                        />
-                      </div>
-                      <span className="block text-[10px] text-slate-500 mt-1">
-                        Havuz Payı: %{Math.round(tier.poolBonusRate * 100)}
-                      </span>
-                    </div>
                   </div>
 
                   {/* Alt Satır: Kariyerli Alt Ekip Şartları (Farklı Kollarda) & Organizasyon Özeti */}
@@ -3320,79 +3153,29 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                 </div>
                 <h3 className="text-base font-bold text-slate-900 mt-0.5">
                   Mevcut Sistem Havuzu:{' '}
-                  {systemFundBalance.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} $
+                  {systemPoolBalance.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} $
                 </h3>
               </div>
 
-              <button
-                type="button"
-                disabled={isSubmitting || systemFundBalance <= 0}
-                onClick={onDistributePool}
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl cursor-pointer disabled:opacity-40"
-              >
-                Dönemsel Kariyer Fonu Havuzunu Şimdi Dağıt
-              </button>
             </div>
 
-            {poolDistributions.length === 0 ? (
-              <div className="text-xs text-slate-500 py-4">
-                Henüz dönemsel kariyer fonu havuz dağıtımı gerçekleştirilmedi.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {poolDistributions.map((dist) => (
-                  <div
-                    key={dist.distribution_id}
-                    className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex flex-wrap items-center justify-between gap-4 text-xs font-mono tabular-nums"
-                  >
-                    <div>
-                      <span className="font-bold text-slate-900">{dist.distribution_id}</span> ·{' '}
-                      <span className="text-slate-500">
-                        {new Date(dist.timestamp).toLocaleString('tr-TR')}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span>Önceki Havuz: {dist.pool_balance_before.toLocaleString('tr-TR')} $</span>
-                      <span className="text-emerald-700 font-bold">
-                        Dağıtılan: {dist.total_distributed.toLocaleString('tr-TR')} $
-                      </span>
-                      <span>Kalan: {dist.pool_balance_after.toLocaleString('tr-TR')} $</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
       )}
 
-      {/* SECTION: BONUS YÖNETİMİ & ANINDA KARİYER BONUSU CÜZDAN AKTARIM PANELİ */}
+      {/* SECTION: BONUS KREDİ YÖNETİMİ & BAYİ CÜZDANLARI */}
       {adminSection === 'bonuses' && (
         <div className="space-y-8">
           {/* Top Metrics Banner */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-gradient-to-br from-emerald-900 to-teal-900 text-white rounded-2xl p-6 space-y-2 shadow-sm">
-              <div className="text-xs font-mono text-emerald-300 uppercase">
-                YÖNETİCİ KARİYER BONUS MERKEZİ
-              </div>
-              <div className="text-2xl font-bold font-mono tabular-nums">
-                {totalCareerBonusesPaid.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} $
-              </div>
-              <div className="text-xs text-emerald-100/90">
-                Bayi Cüzdanlarına Aktarılan Toplam Kariyer & Yönetici Bonusu
-              </div>
-            </div>
-
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-2 shadow-2xs">
               <div className="text-xs font-mono text-slate-500 uppercase">
-                SİSTEM / KARİYER HAVUZU BAKİYESİ
+                SİSTEM HAVUZU BAKİYESİ
               </div>
               <div className="text-2xl font-bold font-mono tabular-nums text-slate-900">
-                {systemFundBalance.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} $
+                {systemPoolBalance.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} $
               </div>
-              <div className="text-xs text-slate-500">
-                Siparişlerden biriken %50 sistem fonu (Yönetici bonusları buradan veya doğrudan tanımlanır)
-              </div>
+              <div className="text-xs text-slate-500">Siparişlerden biriken %5 sistem havuzu</div>
             </div>
 
             <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-2 shadow-2xs">
@@ -3408,324 +3191,17 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
             </div>
           </div>
 
-          {/* 1. YÖNETİCİ TARAFINDAN BELİRLENEN 7 NEFİS KARİYER BONUSLARI TABLOSU */}
-          <section className="bg-white border-2 border-emerald-500/40 rounded-2xl p-6 space-y-6 shadow-sm">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200 pb-4">
-              <div>
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold mb-1">
-                  <Award className="w-3.5 h-3.5" />
-                  <span>7 Nefis Mertebesi Kariyer Bonus Yönetimi</span>
-                </div>
-                <h3 className="text-lg font-bold text-slate-900">
-                  Yönetici Tarafından Belirlenen Kariyer Bonusları & Tek Tıkla Cüzdanlara Anında Aktarım
-                </h3>
-                <p className="text-xs text-slate-600 mt-0.5">
-                  Her kariyer mertebesi için bayi başına ödenecek bonus tutarını ($) belirleyin.{' '}
-                  <strong>"Kariyer Bonusunu Anında Cüzdanlara Aktar"</strong> butonuna tıkladığınızda tutar
-                  anında ilgili bayilerin çekilebilir cüzdan hesaplarına yatırılır.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 shrink-0">
-                <select
-                  value={bonusMatchMode}
-                  onChange={(e) =>
-                    setBonusMatchMode(e.target.value as 'EXACT_LEVEL' | 'MIN_LEVEL')
-                  }
-                  className="px-3 py-2 text-xs font-semibold bg-slate-100 border border-slate-300 rounded-xl text-slate-800"
-                >
-                  <option value="EXACT_LEVEL">
-                    Sadece O Kariyerdeki Bayilere Aktar (Seviye = X)
-                  </option>
-                  <option value="MIN_LEVEL">
-                    O Kariyer ve Üstündeki Tüm Bayilere Aktar (Seviye &ge; X)
-                  </option>
-                </select>
-
-                <button
-                  type="button"
-                  disabled={isSubmitting}
-                  onClick={handleSaveTierBonusAmountsToCareers}
-                  className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl cursor-pointer disabled:opacity-50"
-                >
-                  Belirlenen Bonus Tutarlarını Kaydet
-                </button>
-
-                <button
-                  type="button"
-                  disabled={isSubmitting || !onPayoutCareerBonus}
-                  onClick={() =>
-                    onPayoutCareerBonus?.({
-                      career_level: 'ALL',
-                      tier_bonuses: tierBonusAmounts,
-                      match_mode: bonusMatchMode,
-                    })
-                  }
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer disabled:opacity-50"
-                >
-                  <Zap className="w-4 h-4" />
-                  <span>Tüm 7 Kariyer Bonuslarını Tek Tıkla Cüzdanlara Aktar</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-500">
-                    <th className="py-3 pr-3">Kariyer Mertebesi</th>
-                    <th className="py-3 px-3">Bu Mertebedeki Aktif Bayiler</th>
-                    <th className="py-3 px-3">Hızlı Bayi Kariyer Atama</th>
-                    <th className="py-3 px-3">Yönetici Belirlenen Kariyer Bonusu ($ / Bayi)</th>
-                    <th className="py-3 px-3 text-right">Toplam Aktarılacak</th>
-                    <th className="py-3 pl-3 text-right">Anında Cüzdana Aktar</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {careerTiers.map((tier) => {
-                    const bonusVal = Number(
-                      tierBonusAmounts[tier.level] ?? tier.fixedCareerBonusAmount ?? 1000
-                    );
-                    const matchingMembers = sortedMembers.filter((m) => {
-                      if (!m.is_active || m.is_locked) return false;
-                      return bonusMatchMode === 'MIN_LEVEL'
-                        ? m.career_level >= tier.level
-                        : m.career_level === tier.level;
-                    });
-                    const totalForTier = bonusVal * matchingMembers.length;
-
-                    return (
-                      <tr key={tier.level} className="hover:bg-slate-50/80">
-                        <td className="py-3.5 pr-3">
-                          <div className="font-bold text-slate-900 text-sm">
-                            Kariyer Seviyesi {tier.level}
-                          </div>
-                          <div className="text-[11px] text-slate-500">
-                            {tier.unlockedDepth}. Derinlik Açık · Havuz Oranı: %
-                            {Math.round(tier.poolBonusRate * 100)}
-                          </div>
-                        </td>
-
-                        <td className="py-3.5 px-3">
-                          {matchingMembers.length === 0 ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-500 text-[11px]">
-                              0 Bayi (Yandaki menüden bayi atayabilirsiniz)
-                            </span>
-                          ) : (
-                            <div className="space-y-1">
-                              <span className="inline-flex items-center px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-[11px]">
-                                {matchingMembers.length} Aktif Bayi
-                              </span>
-                              <div className="flex flex-wrap gap-1 max-w-xs">
-                                {matchingMembers.map((mm) => (
-                                  <span
-                                    key={mm.user_id}
-                                    className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px] font-mono text-slate-700"
-                                  >
-                                    #{mm.global_line_id} {mm.full_name} (
-                                    ${getMemberRegionalUsdBalance(mm).toFixed(2)})
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </td>
-
-                        <td className="py-3.5 px-3">
-                          <select
-                            defaultValue=""
-                            disabled={isSubmitting}
-                            onChange={(e) => {
-                              const uid = e.target.value;
-                              if (uid) {
-                                onAdminUpdateMember(uid, { manual_career_override: tier.level });
-                                e.target.value = '';
-                              }
-                            }}
-                            className="px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-700"
-                          >
-                            <option value="">+ Bu Kariyere Bayi Ata...</option>
-                            {sortedMembers.map((sm) => (
-                              <option key={sm.user_id} value={sm.user_id}>
-                                #{sm.global_line_id} {sm.full_name} (Mevcut Kariyer Seviyesi {sm.career_level})
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-
-                        <td className="py-3.5 px-3">
-                          <div className="flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              min={0}
-                              step={250}
-                              value={bonusVal}
-                              onChange={(e) =>
-                                setTierBonusAmounts((prev) => ({
-                                  ...prev,
-                                  [tier.level]: Math.max(0, Number(e.target.value) || 0),
-                                }))
-                              }
-                              className="w-32 px-3 py-1.5 text-sm font-mono font-bold bg-slate-50 border border-emerald-500/60 rounded-xl text-slate-900"
-                            />
-                            <span className="text-xs font-bold text-slate-600">$</span>
-                          </div>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {[1000, 2500, 5000, 10000, 25000, 50000].map((preset) => (
-                              <button
-                                key={preset}
-                                type="button"
-                                onClick={() =>
-                                  setTierBonusAmounts((prev) => ({
-                                    ...prev,
-                                    [tier.level]: preset,
-                                  }))
-                                }
-                                className="px-1.5 py-0.5 text-[10px] font-mono bg-slate-100 hover:bg-emerald-100 text-slate-700 rounded cursor-pointer"
-                              >
-                                {preset.toLocaleString('tr-TR')}$
-                              </button>
-                            ))}
-                          </div>
-                        </td>
-
-                        <td className="py-3.5 px-3 text-right font-mono tabular-nums">
-                          <div className="text-sm font-bold text-emerald-700">
-                            {totalForTier.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} $
-                          </div>
-                          <div className="text-[10px] text-slate-500">
-                            {matchingMembers.length} Bayi × {bonusVal.toLocaleString('tr-TR')} $
-                          </div>
-                        </td>
-
-                        <td className="py-3.5 pl-3 text-right">
-                          <button
-                            type="button"
-                            disabled={isSubmitting || matchingMembers.length === 0 || bonusVal <= 0}
-                            onClick={() =>
-                              onPayoutCareerBonus?.({
-                                career_level: tier.level,
-                                bonus_amount: bonusVal,
-                                tier_bonuses: tierBonusAmounts,
-                                match_mode: bonusMatchMode,
-                              })
-                            }
-                            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-40"
-                          >
-                            <Zap className="w-3.5 h-3.5" />
-                            <span>
-                              Anında Cüzdanlara Aktar ({matchingMembers.length} Bayi)
-                            </span>
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          {/* 2. SEÇİLİ BAYİYE ÖZEL BONUS GÖNDER (NAKİT $ & SEANS KREDİSİ) & CANLI BAYİ HESAPLARI */}
+          {/* Bonus kredi yükleme ve canlı bayi hesapları */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Sol 5 Sütun: Bireysel Nakit Bonus & Yönetici Tarafından Belirlenen Bonus Kredi Yükleme */}
+            {/* Sol 5 Sütun: Yönetici Tarafından Belirlenen Bonus Kredi Yükleme */}
             <div className="lg:col-span-5 space-y-6">
-              {/* KART 1: SEÇİLİ BAYİ CÜZDANINA ANINDA NAKİT BONUS YATIR */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4 shadow-2xs">
-                <div className="border-b border-slate-200 pb-3">
-                  <div className="text-xs font-mono text-emerald-700 font-bold">
-                    1. BİREYSEL BAYİ NAKİT BONUS TRANSFERİ
-                  </div>
-                  <h3 className="text-base font-bold text-slate-900 mt-0.5">
-                    Seçili Bayi Cüzdanına Anında Nakit Bonus Yatır ($)
-                  </h3>
-                </div>
-
-                <div className="space-y-3 text-xs">
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">
-                      Bonus Aktarılacak Bayi Seçin
-                    </label>
-                    <select
-                      value={customBonusTargetUserId || sortedMembers[0]?.user_id || ''}
-                      onChange={(e) => setCustomBonusTargetUserId(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-medium text-slate-900"
-                    >
-                      {sortedMembers.map((m) => (
-                        <option key={m.user_id} value={m.user_id}>
-                          #{m.global_line_id} {m.full_name} (Kariyer Seviyesi {m.career_level}) — Cüzdan:{' '}
-                          ${getMemberRegionalUsdBalance(m).toFixed(2)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">
-                      Aktarılacak Bonus Tutarı ($)
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      step={100}
-                      value={customBonusAmount}
-                      onChange={(e) => setCustomBonusAmount(Math.max(0, Number(e.target.value) || 0))}
-                      className="w-full px-3 py-2 text-sm font-mono font-bold bg-slate-50 border border-slate-300 rounded-xl text-slate-900"
-                    />
-                    <div className="flex flex-wrap gap-1.5 mt-1.5">
-                      {[500, 1000, 2500, 5000, 10000, 25000].map((val) => (
-                        <button
-                          key={val}
-                          type="button"
-                          onClick={() => setCustomBonusAmount(val)}
-                          className="px-2 py-1 bg-slate-100 hover:bg-emerald-100 text-slate-700 rounded-lg font-mono text-[11px] cursor-pointer"
-                        >
-                          +{val.toLocaleString('tr-TR')} $
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">
-                      Bonus Açıklaması / Kariyer Notu
-                    </label>
-                    <input
-                      type="text"
-                      value={customBonusNote}
-                      onChange={(e) => setCustomBonusNote(e.target.value)}
-                      placeholder="Örn: Yönetici Özel Kariyer Ödülü"
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900"
-                    />
-                  </div>
-
-                  <button
-                    type="button"
-                    disabled={isSubmitting || customBonusAmount <= 0 || sortedMembers.length === 0}
-                    onClick={() =>
-                      onPayoutCareerBonus?.({
-                        target_user_id: customBonusTargetUserId || sortedMembers[0]?.user_id,
-                        bonus_amount: customBonusAmount,
-                        note: customBonusNote,
-                      })
-                    }
-                    className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    <Wallet className="w-4 h-4" />
-                    <span>
-                      Nakit Bonusu Cüzdana Aktar (+{customBonusAmount.toLocaleString('tr-TR')} $)
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              {/* KART 2: 🎁 YÖNETİCİ TARAFINDAN BELİRLENEN BONUS KREDİLERİ SEÇİLİ BAYİ PANELİNE YÜKLEME */}
+              {/* Yönetici bonus kredilerini seçili bayi paneline yükleme */}
               <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-blue-950 text-white border-2 border-indigo-400/40 rounded-2xl p-6 space-y-4 shadow-lg">
                 <div className="border-b border-indigo-500/30 pb-3 flex items-start justify-between gap-2">
                   <div>
                     <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-[11px] font-bold">
                       <Gift className="w-3.5 h-3.5 text-amber-400" />
-                      <span>2. YÖNETİCİ BONUS KREDİ MODÜLÜ</span>
+                      <span>YÖNETİCİ BONUS KREDİ MODÜLÜ</span>
                     </div>
                     <h3 className="text-base font-black text-white mt-1">
                       Seçili Bayi Paneline Bonus Kredi Yükle
@@ -3819,7 +3295,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                       type="text"
                       value={bonusCreditNote}
                       onChange={(e) => setBonusCreditNote(e.target.value)}
-                      placeholder="Örn: Kariyer Seviyesi 4 Başarı Bonusu"
+                      placeholder="Örn: Kampanya Seans Kredisi Bonusu"
                       className="w-full px-3 py-2 bg-slate-900 border border-indigo-500/50 rounded-xl text-white placeholder-slate-500"
                     />
                   </div>
@@ -3855,7 +3331,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                     CANLI BAYİ HESAPLARI (Cüzdan Bakiyeleri &amp; Seans Kredileri)
                   </div>
                   <h3 className="text-base font-bold text-slate-900 mt-0.5">
-                    Bayi Cüzdanları, Kredi Havuzları &amp; Tek Tıkla Bonus Yükleme
+                    Bayi Cüzdanları, Seans Kredileri &amp; Hızlı Kredi Bonusu
                   </h3>
                 </div>
               </div>
@@ -3868,7 +3344,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                       <th className="py-2.5 px-2">Kariyer</th>
                       <th className="py-2.5 px-2 text-right">Seans Kredisi</th>
                       <th className="py-2.5 px-2 text-right">Net Çekilebilir Cüzdan</th>
-                      <th className="py-2.5 pl-2 text-right">Tek Tıkla Bonus Yükle</th>
+                      <th className="py-2.5 pl-2 text-right">Seans Kredisi Bonusu</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 font-mono tabular-nums">
@@ -3918,22 +3394,6 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                               <span>+100 Kredi</span>
                             </button>
 
-                            {/* Hızlı Nakit Bonus Butonu */}
-                            <button
-                              type="button"
-                              disabled={isSubmitting}
-                              onClick={() =>
-                                onPayoutCareerBonus?.({
-                                  target_user_id: m.user_id,
-                                  bonus_amount: 2500,
-                                  note: `Kariyer Seviyesi ${m.career_level} Hızlı Yönetici Bonusu`,
-                                })
-                              }
-                              className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-mono font-bold rounded-lg cursor-pointer disabled:opacity-40"
-                              title="Bu bayinin cüzdanına anında +2.500 $ nakit bonus aktarır"
-                            >
-                              +2.5B $
-                            </button>
                           </div>
                         </td>
                       </tr>
@@ -3942,46 +3402,6 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                 </table>
               </div>
 
-              {/* Son Aktarılan Kariyer & Yönetici Bonus İşlemleri */}
-              {poolDistributions.length > 0 && (
-                <div className="pt-4 border-t border-slate-200 space-y-2.5">
-                  <div className="text-xs font-bold text-slate-800">
-                    Son Aktarılan Kariyer & Yönetici Bonus Kayıtları ({poolDistributions.length})
-                  </div>
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {poolDistributions.map((dist) => (
-                      <div
-                        key={dist.distribution_id}
-                        className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
-                      >
-                        <div>
-                          <span className="font-mono font-bold text-emerald-950">
-                            {dist.distribution_id}
-                          </span>{' '}
-                          ·{' '}
-                          <span className="text-slate-600">
-                            {new Date(dist.timestamp).toLocaleString('tr-TR')}
-                          </span>
-                          <div className="text-[11px] text-slate-700 mt-0.5">
-                            {dist.tier_Allocations
-                              .filter((ta) => ta.qualified_member_count > 0)
-                              .map(
-                                (ta) =>
-                                  `Kariyer Seviyesi ${ta.career_level}: ${ta.recipients
-                                    .map((r) => `${r.full_name} (+${r.amount.toLocaleString('tr-TR')} $)`)
-                                    .join(', ')}`
-                              )
-                              .join(' | ')}
-                          </div>
-                        </div>
-                        <div className="font-mono font-bold text-emerald-800 text-sm shrink-0">
-                          +{dist.total_distributed.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} $ Aktarıldı
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -4454,39 +3874,6 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                             <span>Kol / Ağ Düzenle</span>
                           </button>
 
-                          {onPayoutCareerBonus && (
-                            <button
-                              type="button"
-                              disabled={isSubmitting}
-                              onClick={() => {
-                                const tierBonus =
-                                  tierBonusAmounts[m.career_level] ||
-                                  careerTiers.find((t) => t.level === m.career_level)
-                                    ?.fixedCareerBonusAmount ||
-                                  1000;
-                                onPayoutCareerBonus({
-                                  target_user_id: m.user_id,
-                                  bonus_amount: tierBonus,
-                                  note: `Kariyer Seviyesi ${m.career_level} Bonusu`,
-                                });
-                              }}
-                              title="Bu Bayinin Kariyer Bonusunu Anında Cüzdanına Yatır"
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg cursor-pointer disabled:opacity-40"
-                            >
-                              <Gift className="w-3 h-3" />
-                              <span>
-                                +
-                                {(
-                                  tierBonusAmounts[m.career_level] ||
-                                  careerTiers.find((t) => t.level === m.career_level)
-                                    ?.fixedCareerBonusAmount ||
-                                  1000
-                                ).toLocaleString('tr-TR')}{' '}
-                                $ Bonus
-                              </span>
-                            </button>
-                          )}
-
                           {onAdminDeleteMember && (
                             <button
                               type="button"
@@ -4858,7 +4245,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-500">
                     <th className="py-2 pr-2">id (INT PK DEFAULT 1)</th>
-                    <th className="py-2 px-2 text-right">system_pool_balance NUMERIC(15,2) (%50 Fon)</th>
+                    <th className="py-2 px-2 text-right">system_pool_balance NUMERIC(15,2) (%5 Sistem Havuzu)</th>
                     <th className="py-2 px-2 text-right">
                       unclaimed_pool_balance NUMERIC(15,2) (Yetkisizlik/Pasiflikten Devredenler)
                     </th>
@@ -4872,13 +4259,13 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                       {systemWallet?.id ?? 1}
                     </td>
                     <td className="py-2.5 px-2 text-right font-bold text-emerald-700">
-                      {(systemWallet?.system_pool_balance ?? systemFundBalance).toFixed(2)}
+                      {systemPoolBalance.toFixed(2)}
                     </td>
                     <td className="py-2.5 px-2 text-right font-bold text-amber-700">
                       {(systemWallet?.unclaimed_pool_balance ?? 0).toFixed(2)}
                     </td>
                     <td className="py-2.5 px-2 text-right font-black text-indigo-700">
-                      {systemFundBalance.toFixed(2)}
+                      {(systemPoolBalance + (systemWallet?.unclaimed_pool_balance ?? 0)).toFixed(2)}
                     </td>
                     <td className="py-2.5 pl-2 text-right text-slate-500">
                       {systemWallet?.updated_at
@@ -5431,9 +4818,9 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                 <div className="bg-white/10 backdrop-blur-xs border border-white/10 rounded-xl p-3">
                   <div className="text-[10px] font-mono uppercase text-slate-300">Sistem Fon Havuzu</div>
                   <div className="text-xl font-bold text-purple-300 mt-1">
-                    {systemFundBalance.toLocaleString('tr-TR')} $
+                    {systemPoolBalance.toLocaleString('tr-TR')} $
                   </div>
-                  <div className="text-[10px] text-slate-300 mt-0.5">%50 Kariyer Fonu</div>
+                  <div className="text-[10px] text-slate-300 mt-0.5">%5 Sistem Havuzu</div>
                 </div>
 
                 <div className="bg-white/10 backdrop-blur-xs border border-white/10 rounded-xl p-3">

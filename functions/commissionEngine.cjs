@@ -23,6 +23,7 @@ __export(commissionEngine_exports, {
   CAREER_RULES: () => CAREER_RULES,
   COMMISSION_RULES: () => COMMISSION_RULES,
   INFINITY_PERCENT_BY_CAREER: () => INFINITY_PERCENT_BY_CAREER,
+  INTERNATIONAL_CAREER_MULTIPLIER: () => INTERNATIONAL_CAREER_MULTIPLIER,
   MATCHING_PERCENT_BY_CAREER: () => MATCHING_PERCENT_BY_CAREER,
   calculateCommissions: () => calculateCommissions,
   checkCareerEligibility: () => checkCareerEligibility,
@@ -31,11 +32,21 @@ __export(commissionEngine_exports, {
   roundCommissionCurrency: () => roundCommissionCurrency
 });
 module.exports = __toCommonJS(commissionEngine_exports);
+
+// src/utils/walletRegion.ts
+var DOMESTIC_COUNTRY_CODE = "TR";
+var resolveMemberRegion = (countryCode) => {
+  const normalized = (countryCode ?? "").trim().toUpperCase();
+  if (!normalized || normalized === DOMESTIC_COUNTRY_CODE) return "DOMESTIC";
+  return "INTERNATIONAL";
+};
+
+// src/engines/commissionEngine.ts
+var INTERNATIONAL_CAREER_MULTIPLIER = 3;
 var COMMISSION_RULES = {
   directSponsorRate: 0.2,
   monolineDepthRates: [0.07, 0.05, 0.04, 0.03, 0.02, 0.02, 0.02],
   systemPoolRate: 0.05,
-  fastStartRate: 0.15,
   infinityCapPercent: 10,
   clawbackDays: 14,
   compressionMode: "FULL_COMPRESSION",
@@ -72,7 +83,14 @@ function checkCareerEligibility(member, depth, options = {}) {
   return { eligible: isActive && hasDepth, isActive, careerLevel, hasDepth };
 }
 function checkCareerTierEligibility(input) {
-  const { tier, legs } = input;
+  const { legs } = input;
+  const multiplier = resolveMemberRegion(input.countryCode) === "INTERNATIONAL" ? INTERNATIONAL_CAREER_MULTIPLIER : 1;
+  const tier = {
+    ...input.tier,
+    personal: input.tier.personal * multiplier,
+    directs: input.tier.directs * multiplier,
+    group: input.tier.group * multiplier
+  };
   const personalOk = input.activityValid && (tier.level === 1 || input.personalVolume >= tier.personal);
   const directsOk = input.activeDirects >= tier.directs;
   const maxSingleLeg = tier.group > 0 ? tier.group * tier.maxLegPercent / 100 : Infinity;
@@ -99,6 +117,7 @@ function checkCareerTierEligibility(input) {
     downlineOk,
     downlineMatches,
     cappedGroup,
+    thresholds: { personal: tier.personal, directs: tier.directs, group: tier.group },
     eligible: tier.enforceStrictOrganizationRules === false ? personalOk && directsOk : strictEligible,
     strictEligible
   };
@@ -223,6 +242,7 @@ function getSponsorAncestors(member, byUserId, byDocId = /* @__PURE__ */ new Map
   CAREER_RULES,
   COMMISSION_RULES,
   INFINITY_PERCENT_BY_CAREER,
+  INTERNATIONAL_CAREER_MULTIPLIER,
   MATCHING_PERCENT_BY_CAREER,
   calculateCommissions,
   checkCareerEligibility,

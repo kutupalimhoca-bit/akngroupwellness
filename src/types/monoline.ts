@@ -160,7 +160,6 @@ const RAW_FREKANS_PACKAGES: Array<Omit<PackageDefinition, 'features' | 'unitSess
       '215 Bayi Seans Kredisi Havuzu (116 $/seans birim maliyet)',
       'Altın Seviye Holistik Frekans & Rezonans Sentezleyici',
       '5. Kariyer (Râziye) & 6. Kariyer (Marziyye) Paket C Alışveriş Şartı',
-      '%6 ve %8 Kariyer Fonu Ek Havuz Payı Adaylık Yetkisi',
     ],
   },
   {
@@ -203,7 +202,7 @@ const RAW_FREKANS_PACKAGES: Array<Omit<PackageDefinition, 'features' | 'unitSess
       '500 Bayi Seans Kredisi Havuzu (100 $/seans birim maliyet)',
       'Çoklu Operatör / Terapist Alt Hesap Tanımlama Desteği',
       '7. Kariyer (Kâmile) Paket D Alışveriş Şartı Tam Uygunluğu',
-      '7 Derinlik (%25) ve %10 Kâmile Kariyer Havuz Payı Uygunluğu',
+      '7 Derinlik (%25) Uygunluğu',
     ],
   },
   {
@@ -307,7 +306,7 @@ const RAW_FREKANS_PACKAGES: Array<Omit<PackageDefinition, 'features' | 'unitSess
     includedFeatures: [
       '1.300 Bayi Seans Kredisi Havuzu (76 $/seans birim maliyet)',
       'Bölge Distribütörlüğü Lisansı & Alt Bayi Seans Kredisi Tahsisi',
-      '7. Kariyer (Kâmile) + %10 Kariyer Fonu Havuz Payı Önceliği',
+      '7. Kariyer (Kâmile) Öncelik Yetkisi',
       'Bölgesel Pazarlama & QR Kampanya Yönetim Konsolu',
     ],
   },
@@ -328,7 +327,7 @@ const RAW_FREKANS_PACKAGES: Array<Omit<PackageDefinition, 'features' | 'unitSess
     includedFeatures: [
       '3.000 Bayi Seans Kredisi Havuzu (66 $/seans birim maliyet)',
       'Çoklu Şube Merkezi Yönetim Paneli & Sınırsız Terapist Alt Hesabı',
-      '7. Kariyer (Kâmile) Zirve Yetkisi ve Kurumsal Havuz Payı',
+      '7. Kariyer (Kâmile) Zirve Yetkisi',
       'White-Label Raporlama ve Özel Etki Alanı (Domain) Yönlendirmesi',
     ],
   },
@@ -425,8 +424,6 @@ export interface CareerTier {
   idealCountPer1000: number; // 1.000 kişilik aktif ağda ideal bayi sayısı: 400, 250, 175, 100, 50, 20, 5
   unlockedDepth: number; // 1..7
   depthCommissionPercent: number; // 7, 5, 4, 3, 2, 2, 2
-  poolBonusRate: number;
-  poolBonusLabel: string;
   fixedCareerBonusAmount?: number; // Yönetici tarafından belirlenen net kariyer bonusu (USD)
   enforceStrictOrganizationRules?: boolean; // Grup cirosu, %50 kuralı ve alt ekip kariyer şartlarının terfide zorunlu kontrolü
   meaning: string;
@@ -461,8 +458,6 @@ export const INITIAL_CAREER_TIERS: CareerTier[] = [
     idealCountPer1000: 400,
     unlockedDepth: 1,
     depthCommissionPercent: 7,
-    poolBonusRate: 0.02,
-    poolBonusLabel: '1. Derinlik (%7) · %2 Havuz Payı',
     fixedCareerBonusAmount: 1000,
     enforceStrictOrganizationRules: true,
     meaning:
@@ -489,8 +484,6 @@ export const INITIAL_CAREER_TIERS: CareerTier[] = [
     idealCountPer1000: 250,
     unlockedDepth: 2,
     depthCommissionPercent: 5,
-    poolBonusRate: 0.03,
-    poolBonusLabel: '2. Derinlik (%6) · %3 Havuz Payı',
     fixedCareerBonusAmount: 2500,
     enforceStrictOrganizationRules: true,
     meaning:
@@ -517,8 +510,6 @@ export const INITIAL_CAREER_TIERS: CareerTier[] = [
     idealCountPer1000: 175,
     unlockedDepth: 3,
     depthCommissionPercent: 4,
-    poolBonusRate: 0.04,
-    poolBonusLabel: '3. Derinlik (%5) · %4 Havuz Payı',
     fixedCareerBonusAmount: 5000,
     enforceStrictOrganizationRules: true,
     meaning:
@@ -546,8 +537,6 @@ export const INITIAL_CAREER_TIERS: CareerTier[] = [
     idealCountPer1000: 100,
     unlockedDepth: 4,
     depthCommissionPercent: 3,
-    poolBonusRate: 0.05,
-    poolBonusLabel: '4. Derinlik (%4) · %5 Havuz Payı',
     fixedCareerBonusAmount: 10000,
     enforceStrictOrganizationRules: true,
     meaning:
@@ -575,8 +564,6 @@ export const INITIAL_CAREER_TIERS: CareerTier[] = [
     idealCountPer1000: 50,
     unlockedDepth: 5,
     depthCommissionPercent: 2,
-    poolBonusRate: 0.06,
-    poolBonusLabel: '5. Derinlik (%3) · %6 Havuz Payı',
     fixedCareerBonusAmount: 20000,
     enforceStrictOrganizationRules: true,
     meaning:
@@ -604,8 +591,6 @@ export const INITIAL_CAREER_TIERS: CareerTier[] = [
     idealCountPer1000: 20,
     unlockedDepth: 6,
     depthCommissionPercent: 2,
-    poolBonusRate: 0.08,
-    poolBonusLabel: '6. Derinlik (%2) · %8 Havuz Payı',
     fixedCareerBonusAmount: 35000,
     enforceStrictOrganizationRules: true,
     meaning:
@@ -633,12 +618,10 @@ export const INITIAL_CAREER_TIERS: CareerTier[] = [
     idealCountPer1000: 5,
     unlockedDepth: 7,
     depthCommissionPercent: 2,
-    poolBonusRate: 0.10,
-    poolBonusLabel: '7. Derinlik (%2) + %10 Sistem Fonu Havuz Payı',
     fixedCareerBonusAmount: 50000,
     enforceStrictOrganizationRules: true,
     meaning:
-      '$50.000 Toplam Alışveriş + Aktiflik + En az 1000 Aktif Üye + $1.000.000 Ekip Cirosu + Farklı kollarda 2 "Râziye" + 2 "Mutmainne" — 7. Derinlik (%2) + %10 Sistem Fonu Havuz Payı.',
+      '$50.000 Toplam Alışveriş + Aktiflik + En az 1000 Aktif Üye + $1.000.000 Ekip Cirosu + Farklı kollarda 2 "Râziye" + 2 "Mutmainne" — 7. Derinlik (%2) hak edişi.',
   },
 ];
 
@@ -652,7 +635,6 @@ export interface CareerRuleRecord {
   min_direct_refs: number;
   min_group_volume: number;
   depth_unlocked: number;
-  pool_share_percent: number;
 }
 
 export const INITIAL_CAREER_RULES: CareerRuleRecord[] = INITIAL_CAREER_TIERS.map((t) => ({
@@ -662,7 +644,6 @@ export const INITIAL_CAREER_RULES: CareerRuleRecord[] = INITIAL_CAREER_TIERS.map
   min_direct_refs: t.minActiveDirects,
   min_group_volume: t.minGroupVolume,
   depth_unlocked: t.unlockedDepth,
-  pool_share_percent: Math.round(t.poolBonusRate * 100),
 }));
 
 /**
@@ -935,6 +916,7 @@ export function evaluateMemberOrganizationMetrics(
           .map((requirement) => [requirement.minCareerLevel, requirement.requiredCount] as const),
         enforceStrictOrganizationRules: tier.enforceStrictOrganizationRules,
       },
+      countryCode: safeMember.country_code,
       personalVolume: effectivePersonalVolume,
       activeDirects: activeDirectsCount,
       groupVolume: effectiveGroupVolume,
@@ -947,20 +929,21 @@ export function evaluateMemberOrganizationMetrics(
     });
     const personalOk = eligibility.personalOk;
     const directsOk = eligibility.directsOk;
+    const scaledGroup = eligibility.thresholds.group;
     const effectiveGroupVolumeAfterCap = tier.enforceMaxSingleLegPercent
       ? legs.length > 0
         ? eligibility.cappedGroup
         : effectiveGroupVolume
       : effectiveGroupVolume;
-    const groupVolumeOk = effectiveGroupVolume >= (tier.minGroupVolume || 0);
+    const groupVolumeOk = effectiveGroupVolume >= scaledGroup;
     const legBalanceOk =
       !tier.enforceMaxSingleLegPercent ||
-      tier.minGroupVolume <= 0 ||
-      effectiveGroupVolumeAfterCap >= tier.minGroupVolume;
+      scaledGroup <= 0 ||
+      effectiveGroupVolumeAfterCap >= scaledGroup;
     const downlineCareersOk = eligibility.downlineOk;
-    const passPV = effectivePersonalVolume >= (tier.minPersonalVolume || 0);
-    const passRefs = activeDirectsCount >= (tier.minActiveDirects || 0);
-    const passGV = effectiveGroupVolumeAfterCap >= (tier.minGroupVolume || 0);
+    const passPV = effectivePersonalVolume >= eligibility.thresholds.personal;
+    const passRefs = activeDirectsCount >= eligibility.thresholds.directs;
+    const passGV = effectiveGroupVolumeAfterCap >= scaledGroup;
     const passTeam = downlineCareersOk;
     const downlineCareersDetail = eligibility.downlineMatches.length > 0
       ? eligibility.downlineMatches.map((match, index) =>
@@ -1114,7 +1097,6 @@ export interface MonolineMember {
   active_career_level?: number; // SQL: users.active_career_level INT DEFAULT 1 (O Ay Hak Edilen Aktif Kariyer)
   active_career_title?: string; // V2.0: Dönemsel hak ediş yetkisi unvanı
   monoline_position?: number; // SQL: users.monoline_position BIGSERIAL UNIQUE
-  pool_leadership_points?: number; // V2.0: Dinamik Havuz Dağıtımı (Dynamic Pool Split Engine) liderlik puanı
   manual_career_override: number | null;
   unlocked_depth: number;
   wallets: {
@@ -1257,11 +1239,8 @@ export interface V2ArchitectureConfig {
   dynamic_compression_mode?: 'FULL_COMPRESSION' | 'HYBRID_50_50' | 'FUND_SWEEP'; // 2️⃣ Hibrit Dinamik Sıkıştırma Modu
   unilevel_infinity_enabled?: boolean; // V2.2 Revizyon 1: %10 Unilevel Sonsuzluk Fark Primi
   matching_bonus_enabled?: boolean; // V2.2 Revizyon 2: %10..%25 Liderlik Eşleşme Bonusu
-  fast_roi_3x15_enabled?: boolean; // V2.2 Revizyon 3: "3 Getir Bedavaya Getir" +%15 Amortisman Bonusu
   fomo_48h_countdown_enabled?: boolean; // 1️⃣ Geri Sayım Sayacı (48 Saat) ve FOMO Bildirim Sistemi
   p2p_voucher_transfer_enabled?: boolean; // 3️⃣ P2P İç Bakiye Transferi & Aktivasyon Kodu (Voucher)
-  fast_start_window_days?: number; // 4️⃣ Hızlı Başlangıç (Fast-Start) Süresi (14 Gün veya 30 Gün)
-  welcome_30d_double_bonus_enabled?: boolean; // 4️⃣ İlk 30 Gün Hoş Geldin Duble Bonusu (Admin Aç/Kapat)
   whatsapp_business_push_enabled?: boolean; // 5️⃣ Anlık WhatsApp Business API & Push Bildirim Entegrasyonu
 }
 
@@ -1280,7 +1259,7 @@ export type CommissionLogStatusType =
 // SQL Table 3: system_wallet (3. SİSTEM ŞİRKET VE DEVİR HAVUZU)
 export interface SystemWalletRecord {
   id: number; // INT PRIMARY KEY DEFAULT 1
-  system_pool_balance: number; // NUMERIC(15,2) DEFAULT 0.00 -- %50 Fon
+  system_pool_balance: number; // NUMERIC(15,2) DEFAULT 0.00 -- %5 Sistem Havuzu
   unclaimed_pool_balance: number; // NUMERIC(15,2) DEFAULT 0.00 -- Yetkisizlik/Pasiflikten Devredenler
   updated_at: string; // TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 }
@@ -1725,31 +1704,6 @@ export interface CommissionTransaction {
   }>;
 }
 
-export interface PoolDistributionRecord {
-  distribution_id: string;
-  timestamp: string;
-  pool_balance_before: number;
-  total_distributed: number;
-  pool_balance_after: number;
-  distribution_mode?: 'DYNAMIC_POINTS_SPLIT' | 'TIER_PERCENTAGE_SPLIT';
-  total_leadership_points?: number;
-  tier_Allocations: Array<{
-    career_level: number;
-    career_title: string;
-    bonus_rate_percent: number;
-    tier_pool_amount: number;
-    qualified_member_count: number;
-    amount_per_member: number;
-    recipients: Array<{
-      user_id: string;
-      full_name: string;
-      amount: number;
-      leadership_points?: number;
-      point_share_percent?: number;
-    }>;
-  }>;
-}
-
 export interface SystemStateResponse {
   members: MonolineMember[];
   career_tiers: CareerTier[];
@@ -1775,7 +1729,6 @@ export interface SystemStateResponse {
   fraud_alerts?: FraudRiskAlertRecord[];
   webhook_logs: WebhookLogRecord[];
   cron_logs: CronJobExecutionRecord[];
-  pool_distributions: PoolDistributionRecord[];
   system_metrics: {
     total_orders_count: number;
     total_order_volume: number;

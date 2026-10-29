@@ -101,7 +101,6 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
   const [calcMonolineTeamOrders, setCalcMonolineTeamOrders] = useState<number>(12);
   const [calcCareerLevel, setCalcCareerLevel] = useState<number>(4);
   const [includeMatchingBonus, setIncludeMatchingBonus] = useState<boolean>(true);
-  const [includeFastRoi, setIncludeFastRoi] = useState<boolean>(true);
   const [includeInfinityBonus, setIncludeInfinityBonus] = useState<boolean>(true);
 
   // Active Referral Code Determination
@@ -175,7 +174,7 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
   // WhatsApp Share Message
   const waShareText = encodeURIComponent(
     `🌟 AuraBio Kuantum Biyo-Rezonans & Monoline 7 Nefis MLM İş Sunum Raporu (v6.0 Enterprise)\n\n` +
-    `Canlı optik & 3D biyo-aura spektrometresi, 10s vokal biyo-akustik analiz, Web BLE akıllı saat nabız köprüsü, 302+ kadim şifa frekansı, 50+ hastalık ansiklopedisi, MindSpace Studio, 15 resmi bayilik kredi paketi ve %20 Direkt Sponsor + %25 Monoline 7 Derinlik Tek Hat + %50 Kariyer Havuzu gelir modelini inceleyin:\n\n` +
+    `Canlı optik & 3D biyo-aura spektrometresi, 10s vokal biyo-akustik analiz, Web BLE akıllı saat nabız köprüsü, 302+ kadim şifa frekansı, 50+ hastalık ansiklopedisi, MindSpace Studio, 15 resmi bayilik kredi paketi ve %20 Direkt Sponsor + %25 Monoline 7 Derinlik Tek Hat + %5 Sistem Havuzu gelir modelini inceleyin:\n\n` +
     `📊 Resmi Dijital Katalog & İnteraktif İş Sunumu:\n${fullShareUrl}\n\n` +
     `🎁 Yetkili Bayi Referans Kodu: ${activeReferralCode}`
   );
@@ -196,20 +195,10 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
   const avgDepthRate = calcCareerLevel > 0 ? unlockedRatesSum / 7 : 0;
   const monthlyMonolineCommission = Math.round((calcMonolineTeamOrders * calcAvgPackagePrice * avgDepthRate) / 100);
 
-  const selectedCareerTier = CAREER_TIERS.find((t) => t.level === calcCareerLevel) || CAREER_TIERS[3];
-  const monthlyCareerPoolBonus = Math.round(
-    ((calcReferredMembers + calcMonolineTeamOrders) * calcAvgPackagePrice * 0.5) * selectedCareerTier.poolBonusRate
-  );
-
   // Liderlik Eşleşme (Matching Bonus: %10 + %5 + %5 = max %20)
   const matchingRate = calcCareerLevel >= 6 ? 0.20 : calcCareerLevel >= 5 ? 0.15 : calcCareerLevel >= 3 ? 0.10 : 0;
   const monthlyMatchingBonus = includeMatchingBonus && calcCareerLevel >= 3
     ? Math.round(monthlyMonolineCommission * matchingRate)
-    : 0;
-
-  // Fast-ROI bonus: If referred members >= 3, +15% ekstra ikramiye (toplam %75 nakit geri dönüş)
-  const monthlyFastRoiBonus = includeFastRoi && calcReferredMembers >= 3
-    ? Math.round(3 * calcAvgPackagePrice * 0.15)
     : 0;
 
   // Unilevel Infinity differential bonus (%1 - %7 on deep downline)
@@ -222,9 +211,7 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
     monthlySessionProfit +
     monthlyDirectSponsorCommission +
     monthlyMonolineCommission +
-    monthlyCareerPoolBonus +
     monthlyMatchingBonus +
-    monthlyFastRoiBonus +
     monthlyInfinityBonus;
 
   const yearlyProjectedEarnings = totalMonthlyEarnings * 12;
@@ -759,7 +746,7 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
               <div className="p-5 rounded-2xl bg-gradient-to-r from-emerald-950/60 to-slate-900 border border-emerald-500/40 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
                 <div>
                   <h4 className="text-sm font-bold text-slate-100">Monoline 7 Nefis MLM &amp; Bayi Gelir Modelini Keşfedin</h4>
-                  <p className="text-xs text-slate-400">Danışan seans kârı, %20 Direkt Sponsor, %25 Monoline Tek Hat ve %50 Kariyer Havuzu gelirlerini inceleyin.</p>
+                  <p className="text-xs text-slate-400">Danışan seans kârı, %20 Direkt Sponsor, %25 Monoline Tek Hat ve %5 sistem havuzu kapsamını inceleyin; kalan %50 şirket brüt marjıdır.</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button
@@ -791,7 +778,7 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                   <span>Monoline (Küresel Tek Hat) &amp; 7 Nefis Mertebesi MLM Kazanç Mimarisi</span>
                 </div>
                 <h3 className="text-xl sm:text-2xl font-black text-white leading-tight">
-                  Danışan Seans Geliri + %20 Direkt Sponsor + %25 Küresel Tek Hat (7 Derinlik) + %50 Kariyer Havuzu + Liderlik &amp; Fast-ROI Bonusları
+                  Danışan Seans Geliri + %20 Direkt Sponsor + %25 Küresel Tek Hat (7 Derinlik) + %5 Sistem Havuzu + Liderlik Bonusları
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-4xl">
                   AuraBio Frekans ekosistemi; terapistlere, kliniklere ve girişimcilere hem yüksek marjlı danışan seans geliri hem de dünya genelinde katılan her yeni bayinin tek bir kronolojik sıraya (Global Single Line) eklendiği adil, şeffaf ve sürdürülebilir <strong>Monoline 7 Nefis MLM</strong> komisyon planı sunar.
@@ -861,15 +848,15 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                       <Award className="w-5 h-5" />
                     </div>
                     <span className="px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-black border border-purple-500/30">
-                      4. GELİR KAPISI (%50 FON)
+                      4. SİSTEM HAVUZU (%5)
                     </span>
                   </div>
-                  <h4 className="text-sm font-black text-slate-100">4. 7 Nefis Kariyer Havuzu &amp; Cüzdan Bonusları</h4>
+                  <h4 className="text-sm font-black text-slate-100">4. Sistem Havuzu (%5)</h4>
                   <p className="text-xs text-slate-400 leading-relaxed">
-                    Her siparişin <strong>%50'si Sistem ve Kariyer Fonuna</strong> aktarılır. Nefs-i Emmâre'den Nefs-i Kâmile'ye 7 basamağa ulaşan bayiler havuzdan <strong>%2 ile %15 arasında ek kâr payı</strong> ve cüzdana nakit bonuslar kazanır.
+                    Her siparişin <strong>%5'i sistem havuzuna</strong> aktarılır; derinlik yetkisizliğinden devreden tutarlar da bu havuza eklenir. Kalan <strong>%50 şirketin brüt marjı</strong>dır ve bayiye veya komisyon hesabına yazılmaz.
                   </p>
                   <div className="p-2.5 rounded-xl bg-purple-950/40 border border-purple-500/30 text-[11px] font-bold text-purple-300">
-                    7 Nefis Mertebesi Havuz Payı (%2 – %15) · Anlık Nakit Bonuslar
+                    %5 Sistem Havuzu · Kalan %50 Şirket Brüt Marjı
                   </div>
                 </div>
 
@@ -891,24 +878,6 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                   </div>
                 </div>
 
-                <div className="p-5 rounded-2xl bg-slate-950/80 border border-emerald-500/30 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-300">
-                      <Zap className="w-5 h-5" />
-                    </div>
-                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-black border border-emerald-500/30">
-                      6. FAST-ROI (%75 İADE)
-                    </span>
-                  </div>
-                  <h4 className="text-sm font-black text-slate-100">6. &ldquo;3 Getir Bedavaya Getir&rdquo; Fast-ROI İkramiyesi</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    İlk 3 direkt satışınızın her birinden aldığınız %20 Direkt Sponsor Primine (3×%20 = %60) ek olarak, 3. satışta <strong>+%15 Fast-ROI Hızlı Amortisman İkramiyesi</strong> ödenir. Toplam %75 iade ile paket maliyetiniz sıfırlanır!
-                  </p>
-                  <div className="p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-[11px] font-bold text-emerald-300">
-                    %60 Direkt Sponsor + %15 Fast-ROI = Toplam %75 Nakit İade
-                  </div>
-                </div>
-
               </div>
 
               {/* 7 Nefis Mertebesi Career Matrix Table */}
@@ -917,10 +886,10 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                   <div>
                     <h4 className="text-sm font-black text-slate-100 flex items-center gap-2">
                       <Award className="w-4 h-4 text-amber-400" />
-                      <span>7 Nefis Mertebesi Kariyer, Derinlik Kilidi &amp; Havuz Payı Matrisi</span>
+                      <span>7 Nefis Mertebesi Kariyer &amp; Derinlik Kilidi Matrisi</span>
                     </h4>
                     <p className="text-[11px] text-slate-400">
-                      Kişisel paket seviyesi ve direkt aktif referans sayısına göre açılan Monoline derinlikleri ve çeyreklik havuz fonu oranları:
+                      Kişisel paket seviyesi ve direkt aktif referans sayısına göre açılan Monoline derinlikleri:
                     </p>
                   </div>
                 </div>
@@ -933,8 +902,7 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                         <th className="py-2.5 px-3">Nefis Mertebesi</th>
                         <th className="py-2.5 px-3">Min. Kişisel Paket</th>
                         <th className="py-2.5 px-3">Direkt Referans</th>
-                        <th className="py-2.5 px-3">Açılan Derinlik</th>
-                        <th className="py-2.5 pl-3 text-right">Kariyer Havuz Payı</th>
+                        <th className="py-2.5 pl-3">Açılan Derinlik</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/80">
@@ -949,11 +917,8 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                             </td>
                             <td className="py-2.5 px-3 font-mono text-slate-300">{tier.minPackageLabel}</td>
                             <td className="py-2.5 px-3 font-mono text-slate-300">{tier.minActiveDirects} Aktif Üye</td>
-                            <td className="py-2.5 px-3 font-mono text-emerald-300 font-semibold">
+                            <td className="py-2.5 pl-3 font-mono text-emerald-300 font-semibold">
                               {tier.unlockedDepth}. Derinlik (%{depthRule?.percentage})
-                            </td>
-                            <td className="py-2.5 pl-3 text-right font-mono font-bold text-amber-300">
-                              {tier.poolBonusLabel}
                             </td>
                           </tr>
                         );
@@ -1099,7 +1064,7 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                   <div className="space-y-1">
                     <h4 className="text-sm font-bold text-slate-100">Bayi Back-Office'ten Monoline Ağacınızı ve Cüzdanınızı Yönetin</h4>
                     <p className="text-xs text-slate-400 leading-relaxed">
-                      Bayi Back-Office ekranında küresel tek hat ağacınızı, alt ekip siparişlerinizi ve cüzdan hareketlerinizi izleyin; biriken %20 Direkt Sponsor, %25 Monoline ve %50 Kariyer Havuzu gelirlerinizi resmi TR IBAN hesabınıza nakit olarak çekin.
+                      Bayi Back-Office ekranında küresel tek hat ağacınızı, alt ekip siparişlerinizi ve cüzdan hareketlerinizi izleyin; biriken %20 Direkt Sponsor, %25 Monoline ve %5 Sistem Havuzu kapsamındaki gelirlerinizi resmi TR IBAN hesabınıza nakit olarak çekin.
                     </p>
                   </div>
                 </div>
@@ -1119,7 +1084,7 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                   <span>Çok Boyutlu Finansal Kazanç &amp; Amortisman (ROI) Hesaplayıcı</span>
                 </div>
                 <h3 className="text-xl sm:text-2xl font-black text-white leading-tight">
-                  Danışan Seansı + %20 Direkt Sponsor + %25 Monoline + %50 Kariyer Havuzu + Ekstra Prim Simülatörü
+                  Danışan Seansı + %20 Direkt Sponsor + %25 Monoline + %5 Sistem Havuzu + Ekstra Prim Simülatörü
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
                   Uyguladığınız danışan seansları, direkt davet ettiğiniz üyeler, küresel tek hat (Monoline) siparişleri ve Nefis kariyer mertebenize göre aylık net gelirinizi ve yatırım geri dönüş (ROI) sürenizi canlı simüle edin.
@@ -1228,7 +1193,7 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
 
                   {/* Bonus Toggles */}
                   <div className="pt-2 border-t border-slate-850 space-y-2">
-                    <span className="text-[11px] font-bold text-slate-400 block">Ekstra Liderlik ve Hızlı Başlangıç Primleri:</span>
+                    <span className="text-[11px] font-bold text-slate-400 block">Ekstra Liderlik Primleri:</span>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                       <label className="flex items-center gap-2 p-2 rounded-xl bg-slate-900/80 border border-slate-800 cursor-pointer hover:bg-slate-900">
                         <input
@@ -1238,15 +1203,6 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                           className="accent-purple-500 rounded"
                         />
                         <span className="text-purple-300 font-semibold text-[11px]">Matching (%20)</span>
-                      </label>
-                      <label className="flex items-center gap-2 p-2 rounded-xl bg-slate-900/80 border border-slate-800 cursor-pointer hover:bg-slate-900">
-                        <input
-                          type="checkbox"
-                          checked={includeFastRoi}
-                          onChange={(e) => setIncludeFastRoi(e.target.checked)}
-                          className="accent-emerald-500 rounded"
-                        />
-                        <span className="text-emerald-300 font-semibold text-[11px]">Fast-ROI (+%15)</span>
                       </label>
                       <label className="flex items-center gap-2 p-2 rounded-xl bg-slate-900/80 border border-slate-800 cursor-pointer hover:bg-slate-900">
                         <input
@@ -1286,32 +1242,18 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                       </span>
                       <span className="text-sm font-mono font-black text-teal-300">+{formatUsd(monthlyMonolineCommission)}</span>
                     </div>
-                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                      <span className="text-xs text-amber-300 font-bold">
-                        4. {selectedCareerTier.title} Kariyer Havuz Payı:
-                      </span>
-                      <span className="text-sm font-mono font-black text-amber-300">+{formatUsd(monthlyCareerPoolBonus)}</span>
-                    </div>
                     {monthlyMatchingBonus > 0 && (
                       <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                         <span className="text-xs text-purple-300 font-bold">
-                          5. Liderlik Eşleşme (Matching %{Math.round(matchingRate * 100)}):
+                          4. Liderlik Eşleşme (Matching %{Math.round(matchingRate * 100)}):
                         </span>
                         <span className="text-sm font-mono font-black text-purple-300">+{formatUsd(monthlyMatchingBonus)}</span>
-                      </div>
-                    )}
-                    {monthlyFastRoiBonus > 0 && (
-                      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                        <span className="text-xs text-emerald-300 font-bold">
-                          6. Fast-ROI Hızlı İkramiye (+%15):
-                        </span>
-                        <span className="text-sm font-mono font-black text-emerald-300">+{formatUsd(monthlyFastRoiBonus)}</span>
                       </div>
                     )}
                     {monthlyInfinityBonus > 0 && (
                       <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                         <span className="text-xs text-sky-300 font-bold">
-                          7. Infinity Sonsuzluk Farkı (%{calcCareerLevel}):
+                          5. Infinity Sonsuzluk Farkı (%{calcCareerLevel}):
                         </span>
                         <span className="text-sm font-mono font-black text-sky-300">+{formatUsd(monthlyInfinityBonus)}</span>
                       </div>
@@ -1363,7 +1305,7 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                     32 Seans Kredisinden 5.000 Seans Kredisine 15 Resmi Paket
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-3xl">
-                    Paket satın alındığında seans kredileri anında havuzunuza yüklenir ve tutar Monoline motoru üzerinden <strong>%20 Direkt Sponsor • %25 7 Derinlik Tek Hat • %50 Kariyer Fonu</strong> olarak dağıtılır.
+                    Paket satın alındığında seans kredileri anında havuzunuza yüklenir ve tutar Monoline motoru üzerinden <strong>%20 Direkt Sponsor • %25 7 Derinlik Tek Hat • %5 Sistem Havuzu</strong> olarak dağıtılır.
                   </p>
                 </div>
 
@@ -1715,7 +1657,7 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                       <div>• AKN Global Group Ltd Şirket Heyet Onayı &amp; Teknik Mimari</div>
                       <div>• 16 Bütüncül Biyo-Rezonans &amp; Spektrometre Teknolojisi</div>
                       <div>• 302+ Kadim Şifa Frekansı &amp; 50+ Hastalık Protokolü Matrisi</div>
-                      <div>• Monoline 7 Nefis MLM (%20 Sponsor • %25 Tek Hat • %50 Kariyer Fonu)</div>
+                      <div>• Monoline 7 Nefis MLM (%20 Sponsor • %25 Tek Hat • %5 Sistem Havuzu)</div>
                       <div>• 15 Resmi Alışveriş Paketi Fiyatlandırma &amp; Birim Maliyet Tabloları</div>
                       <div>• BDDK / TCMB 3D Secure Sanal POS &amp; Yasal Uyum Beyanları</div>
                     </div>

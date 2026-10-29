@@ -1,8 +1,11 @@
+import { resolveMemberRegion } from '../utils/walletRegion';
+
+export const INTERNATIONAL_CAREER_MULTIPLIER = 3;
+
 export const COMMISSION_RULES = {
   directSponsorRate: 0.2,
   monolineDepthRates: [0.07, 0.05, 0.04, 0.03, 0.02, 0.02, 0.02],
   systemPoolRate: 0.05,
-  fastStartRate: 0.15,
   infinityCapPercent: 10,
   clawbackDays: 14,
   compressionMode: 'FULL_COMPRESSION',
@@ -75,13 +78,21 @@ export function checkCareerTierEligibility(input: {
     requirements: ReadonlyArray<readonly [number, number]>;
     enforceStrictOrganizationRules?: boolean;
   };
+  countryCode?: string | null;
   personalVolume: number;
   activeDirects: number;
   groupVolume: number;
   activityValid: boolean;
   legs: ReadonlyArray<{ id: string; volume: number; maxCareerLevel: number }>;
 }) {
-  const { tier, legs } = input;
+  const { legs } = input;
+  const multiplier = resolveMemberRegion(input.countryCode) === 'INTERNATIONAL' ? INTERNATIONAL_CAREER_MULTIPLIER : 1;
+  const tier = {
+    ...input.tier,
+    personal: input.tier.personal * multiplier,
+    directs: input.tier.directs * multiplier,
+    group: input.tier.group * multiplier,
+  };
   const personalOk = input.activityValid && (tier.level === 1 || input.personalVolume >= tier.personal);
   const directsOk = input.activeDirects >= tier.directs;
   const maxSingleLeg = tier.group > 0 ? (tier.group * tier.maxLegPercent) / 100 : Infinity;
@@ -110,6 +121,7 @@ export function checkCareerTierEligibility(input: {
     downlineOk,
     downlineMatches,
     cappedGroup,
+    thresholds: { personal: tier.personal, directs: tier.directs, group: tier.group },
     eligible: tier.enforceStrictOrganizationRules === false
       ? personalOk && directsOk
       : strictEligible,

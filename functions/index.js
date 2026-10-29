@@ -13,7 +13,8 @@ const {
   COMMISSION_RULES,
   calculateCommissions,
   checkCareerEligibility,
-  checkCareerTierEligibility
+  checkCareerTierEligibility,
+  getSponsorAncestors
 } = require("./commissionEngine.cjs");
 
 const PACKAGE_PRICES = {
@@ -72,7 +73,6 @@ const ACTIVITY_PERIOD_DAYS = 30;
 
 const COMMISSION_CONFIG = {
   DIRECT_SPONSOR_RATE: COMMISSION_RULES.directSponsorRate,
-  FAST_ROI_RATE: COMMISSION_RULES.fastStartRate,
   CLAWBACK_DAYS: COMMISSION_RULES.clawbackDays,
   COMPRESSION_MODE: COMMISSION_RULES.compressionMode,
   ENFORCE_CAREER_DEPTH_LOCK: COMMISSION_RULES.enforceCareerDepthLock
@@ -154,6 +154,7 @@ function recalculateCareerProfiles(users, recentOrderTotals, nowMs) {
     for (const tier of CAREER_RULES) {
       const eligibility = checkCareerTierEligibility({
         tier,
+        countryCode: member.country_code,
         personalVolume,
         activeDirects,
         groupVolume,
@@ -190,55 +191,52 @@ function recalculateCareerProfiles(users, recentOrderTotals, nowMs) {
       member.active_direct_referrals_30d = member.active_direct_referrals;
       member.monoline_position = member.global_line_id;
       member.daily_withdrawal_limit = activeTier.withdrawalLimit;
-      member.pool_leadership_points = member.is_active === true && !member.is_locked
-        ? Math.max(10, activeLevel * activeLevel * 10 + Math.floor(Number(member.rolling_30d_pgv || 0) / 5000) + member.active_direct_referrals * 5)
-        : 0;
     }
   }
   return users;
 }
 
+async function fetchSponsorDoc(transaction, member) {
+  if (member.sponsor_id !== undefined && member.sponsor_id !== null && member.sponsor_id !== "") {
+    const sponsorId = String(member.sponsor_id);
+    const directDoc = await transaction.get(db.collection("users").doc(sponsorId));
+    if (directDoc.exists) return directDoc;
+    const querySnapshot = await transaction.get(
+      db.collection("users").where("user_id", "==", sponsorId).limit(1)
+    );
+    if (querySnapshot.docs[0]) return querySnapshot.docs[0];
+  }
+  if (member.sponsor_db_id !== undefined && member.sponsor_db_id !== null) {
+    const sponsorDbId = String(member.sponsor_db_id);
+    const directDoc = await transaction.get(db.collection("users").doc(sponsorDbId));
+    if (directDoc.exists) return directDoc;
+    const querySnapshot = await transaction.get(
+      db.collection("users").where("id", "==", member.sponsor_db_id).limit(1)
+    );
+    return querySnapshot.docs[0] || null;
+  }
+  return null;
+}
+
 async function loadSponsorAncestors(transaction, buyerDoc, amount) {
   const buyerData = buyerDoc.data() || {};
   const buyer = { ...buyerData, __doc_id: buyerDoc.id, user_id: buyerData.user_id || buyerDoc.id };
-  const ancestors = [];
-  const visited = new Set([String(buyer.user_id), String(buyerDoc.id)]);
+  const byUserId = new Map();
+  const byDocId = new Map();
+  const byDbId = new Map();
+  let ancestors = [];
   let cursor = buyer;
 
   while (cursor) {
-    let parentDoc = null;
-    if (cursor.sponsor_id !== undefined && cursor.sponsor_id !== null && cursor.sponsor_id !== "") {
-      const sponsorId = String(cursor.sponsor_id);
-      const directDoc = await transaction.get(db.collection("users").doc(sponsorId));
-      if (directDoc.exists) {
-        parentDoc = directDoc;
-      } else {
-        const querySnapshot = await transaction.get(
-          db.collection("users").where("user_id", "==", sponsorId).limit(1)
-        );
-        parentDoc = querySnapshot.docs[0] || null;
-      }
-    }
-    if (!parentDoc && cursor.sponsor_db_id !== undefined && cursor.sponsor_db_id !== null) {
-      const sponsorDbId = String(cursor.sponsor_db_id);
-      const directDoc = await transaction.get(db.collection("users").doc(sponsorDbId));
-      if (directDoc.exists) {
-        parentDoc = directDoc;
-      } else {
-        const querySnapshot = await transaction.get(
-          db.collection("users").where("id", "==", cursor.sponsor_db_id).limit(1)
-        );
-        parentDoc = querySnapshot.docs[0] || null;
-      }
-    }
-
-    if (!parentDoc || visited.has(String(parentDoc.id))) break;
+    const parentDoc = await fetchSponsorDoc(transaction, cursor);
+    if (!parentDoc) break;
     const parentData = parentDoc.data() || {};
     const parent = { ...parentData, __doc_id: parentDoc.id, user_id: parentData.user_id || parentDoc.id };
-    if (visited.has(String(parent.user_id))) break;
-    visited.add(String(parent.user_id));
-    visited.add(String(parentDoc.id));
-    ancestors.push(parent);
+    if (byDocId.has(String(parentDoc.id)) || byUserId.has(String(parent.user_id))) break;
+    byUserId.set(String(parent.user_id), parent);
+    byDocId.set(String(parentDoc.id), parent);
+    if (parent.id !== undefined && parent.id !== null) byDbId.set(String(parent.id), parent);
+    ancestors = getSponsorAncestors(buyer, byUserId, byDocId, byDbId);
     cursor = parent;
     const plan = calculateCommissions({
       amount,
@@ -313,7 +311,7 @@ exports.recalculateCareerProfilesCron = functions
       "max_career_level", "max_career_title", "career_level", "career_title",
       "active_career_level", "active_career_title", "active_direct_referrals",
       "active_direct_referrals_30d", "unlocked_depth", "monoline_position",
-      "daily_withdrawal_limit", "pool_leadership_points"
+      "daily_withdrawal_limit"
     ];
     const previousProfiles = new Map(users.map((member) => [
       member.__doc_id,
@@ -536,62 +534,6 @@ exports.handleOrderCommission = functions
           enforceCareerDepthLock: COMMISSION_CONFIG.ENFORCE_CAREER_DEPTH_LOCK,
           useActiveCareer: true
         });
-        const directMembers = new Map();
-        let fastStartAward = null;
-        if (sponsor && !sponsor.fast_start_awarded) {
-          const directQueries = [];
-          if (sponsor.user_id) {
-            directQueries.push(db.collection("users").where("sponsor_id", "==", sponsor.user_id));
-          }
-          if (sponsor.id !== undefined) {
-            directQueries.push(db.collection("users").where("sponsor_db_id", "==", sponsor.id));
-          }
-          const directSnapshots = await Promise.all(directQueries.map((query) => transaction.get(query)));
-          directSnapshots.forEach((snapshot) => snapshot.docs.forEach((doc) => {
-            const data = doc.data() || {};
-            directMembers.set(doc.id, { ...data, __doc_id: doc.id, user_id: data.user_id || doc.id });
-          }));
-          directMembers.set(buyerMember.__doc_id, buyerMember);
-          const qualifyingDirects = [...directMembers.values()]
-            .filter((member) => member.sponsor_id === sponsor.user_id || String(member.sponsor_db_id) === String(sponsor.id ?? sponsor.__doc_id))
-            .map((member) => member.user_id === buyerMember.user_id ? buyerMember : member)
-            .filter((member) => member.is_active === true && Number(member.personal_volume || 0) >= 5000)
-            .sort((a, b) => Number(a.global_line_id || 0) - Number(b.global_line_id || 0));
-          const joinedAtMs = toMillis(sponsor.joined_at);
-          const withinWindow = !Number.isFinite(joinedAtMs) || nowMs - joinedAtMs <= 30 * 86400000;
-          if (qualifyingDirects.length >= 3 && withinWindow) {
-            const sponsorPackageFloor = Math.max(5000, Number(sponsor.personal_volume || 5000));
-            const firstThreeSum = qualifyingDirects.slice(0, 3)
-              .reduce((sum, member) => sum + Number(member.personal_volume || 5000), 0);
-            const amortizedVolume = Math.min(sponsorPackageFloor * 3, firstThreeSum);
-            const bonusAmount = roundCurrency(amortizedVolume * COMMISSION_CONFIG.FAST_ROI_RATE);
-            sponsor.fast_start_awarded = true;
-            fastStartAward = {
-              member: sponsor,
-              amount: bonusAmount,
-              ref: db.collection("user_rewards_log").doc(`${encodeURIComponent(String(sponsor.user_id))}-FAST-START`),
-              data: {
-                id: Number.parseInt(randomBytes(6).toString("hex"), 16),
-                user_id: sponsor.id ?? sponsor.__doc_id,
-                external_user_id: sponsor.user_id,
-                user_full_name: sponsor.full_name || "",
-                career_level: Number(sponsor.career_level || 1),
-                career_title: sponsor.career_title || CAREER_RULES[0].title,
-                reward_type: "FAST_START",
-                reward_description: `\"3 Getir Bedavaya Getir\" (Fast-ROI +%15 Amortisman Bonusu · 3 × ${sponsorPackageFloor.toLocaleString("tr-TR")} $ = ${amortizedVolume.toLocaleString("tr-TR")} $ × %15 = +${bonusAmount.toLocaleString("tr-TR")} $)`,
-                cash_value: bonusAmount,
-                is_delivered: true,
-                earned_at: serverTimestamp
-              }
-            };
-          }
-        }
-        const fastStartSnapshot = fastStartAward ? await transaction.get(fastStartAward.ref) : null;
-        const newRewards = [];
-        if (fastStartAward && fastStartSnapshot && !fastStartSnapshot.exists) {
-          newRewards.push({ ref: fastStartAward.ref, data: fastStartAward.data });
-        }
-
         const commissionLogs = [];
         const walletCredits = new Map();
         const monolinePayouts = [];
@@ -633,21 +575,6 @@ exports.handleOrderCommission = functions
             created_at: serverTimestamp
           });
         };
-
-        if (fastStartAward && fastStartSnapshot && !fastStartSnapshot.exists) {
-          const bonusRegion = resolveMemberRegion(fastStartAward.member.country_code);
-          addWalletCredit(fastStartAward.member, ["sponsor_wallet", "fast_roi_wallet"], fastStartAward.amount, bonusRegion);
-          addCommissionLog(
-            fastStartAward.member.__doc_id,
-            fastStartAward.member.__doc_id,
-            "FAST_ROI_BONUS",
-            fastStartAward.amount,
-            COMMISSION_CONFIG.FAST_ROI_RATE * 100,
-            null,
-            bonusRegion,
-            `FAST-ROI-${fastStartAward.member.user_id}`
-          );
-        }
 
         const directSponsorAmount = commissionPlan.sponsorAmount;
         let directSponsorPaid = 0;
@@ -790,7 +717,7 @@ exports.handleOrderCommission = functions
         const systemPoolInflow = roundCurrency(systemFundAmount + unclaimedAmount);
         const systemWalletRef = db.collection("wallets").doc("SYSTEM_MASTER_FUND");
         const logRefs = commissionLogs.map((log) => ({ ref: db.collection("commission_logs").doc(), data: log }));
-        const writeCount = 3 + walletCredits.size + 1 + logRefs.length + newRewards.length + (fastStartAward ? 1 : 0);
+        const writeCount = 3 + walletCredits.size + 1 + logRefs.length;
         if (writeCount > 500) {
           throw Object.assign(
             new Error(`Sipariş transaction'ı ${writeCount} yazım gerektiriyor; Firestore transaction sınırı 500 yazımdır. Sipariş güvenli şekilde işlenmedi.`),
@@ -819,12 +746,6 @@ exports.handleOrderCommission = functions
           created_at: serverTimestamp
         });
         transaction.update(buyerRef, buyerUpdates);
-        if (fastStartAward) {
-          transaction.update(db.collection("users").doc(fastStartAward.member.__doc_id), {
-            fast_start_awarded: true,
-            updated_at: serverTimestamp
-          });
-        }
         walletCredits.forEach((credit) => {
           const walletUpdate = { updated_at: serverTimestamp };
           Object.entries(credit.values).forEach(([field, value]) => {
@@ -839,7 +760,6 @@ exports.handleOrderCommission = functions
           updated_at: serverTimestamp
         }, { merge: true });
         logRefs.forEach(({ ref, data }) => transaction.set(ref, data));
-        newRewards.forEach(({ ref, data }) => transaction.set(ref, data));
 
         return {
           alreadyProcessed: false,

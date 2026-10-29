@@ -35,6 +35,14 @@ export const getPayoutChannelForRegion = (
   return requested === 'SEPA' ? 'SEPA' : 'SWIFT';
 };
 
+export const getRejectedWithdrawalRefund = (withdrawal: {
+  amount: number;
+  gross_amount?: number | null;
+}) => {
+  const refundAmount = withdrawal.gross_amount ?? withdrawal.amount;
+  return { refundAmount, taxDeduction: 0, netAmount: refundAmount, taxRatePercent: 0 };
+};
+
 export const validateWithdrawalPayout = ({
   region,
   channel,

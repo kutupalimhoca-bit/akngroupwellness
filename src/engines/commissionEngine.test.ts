@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   CAREER_RULES,
@@ -90,4 +89,44 @@ test('career tier eligibility applies group balance and distinct leg requirement
   assert.equal(result.groupOk, true);
   assert.equal(result.downlineOk, true);
   assert.equal(result.eligible, true);
+});
+
+test('yurt dışı bayi kariyer eşiklerini 3 katı üzerinden değerlendirilir', () => {
+  const tier = CAREER_RULES[3];
+  const legs = [
+    { id: 'leg-a', volume: 5000, maxCareerLevel: 2 },
+    { id: 'leg-b', volume: 5000, maxCareerLevel: 1 },
+  ];
+  const base = { tier, activityValid: true, legs };
+
+  const domesticEligible = checkCareerTierEligibility({
+    ...base,
+    countryCode: 'TR',
+    personalVolume: 7500,
+    activeDirects: 50,
+    groupVolume: 10000,
+  });
+  assert.equal(domesticEligible.eligible, true);
+
+  const internationalSameVolumes = checkCareerTierEligibility({
+    ...base,
+    countryCode: 'US',
+    personalVolume: 7500,
+    activeDirects: 50,
+    groupVolume: 10000,
+  });
+  assert.equal(internationalSameVolumes.eligible, false);
+
+  const internationalTripled = checkCareerTierEligibility({
+    ...base,
+    legs: [
+      { id: 'leg-a', volume: 15000, maxCareerLevel: 2 },
+      { id: 'leg-b', volume: 15000, maxCareerLevel: 1 },
+    ],
+    countryCode: 'US',
+    personalVolume: 22500,
+    activeDirects: 150,
+    groupVolume: 30000,
+  });
+  assert.equal(internationalTripled.eligible, true);
 });

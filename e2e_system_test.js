@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import { evaluateMemberOrganizationMetrics, INITIAL_CAREER_TIERS } from './src/types/monoline.ts';
 
-const PORT = 3000;
+const PORT = Number(process.env.E2E_PORT) || 3000;
 const BASE = `http://127.0.0.1:${PORT}`;
 const DAY_MS = 86400000;
 const stamp = Date.now().toString(36);
@@ -62,6 +62,7 @@ async function main() {
   const env = {
     ...process.env,
     NODE_ENV: 'development',
+    PORT: String(PORT),
     ADMIN_PASSWORD: adminPassword,
     ADMIN_JWT_SECRET: randomBytes(32).toString('hex'),
     MEMBER_JWT_SECRET: randomBytes(32).toString('hex'),
@@ -511,12 +512,12 @@ async function main() {
       `çekim kararı=${missingWithdrawalDecision.status}, vergi kararı=${missingTaxDecision.status}`
     );
     record(
-      'Yurtiçi red sonrası stopaj düşülerek net tutar iade edildi',
-      trReject.status === 200 && near(domRefunded, domBeforeTr - 20) && near(trReject.json?.withdrawal?.tax_deduction, 20),
-      `HTTP ${trReject.status}, dom bakiye=${domRefunded} (beklenen ${domBeforeTr - 20}), stopaj=${trReject.json?.withdrawal?.tax_deduction}`
+      'Yurtiçi red sonrası tam tutar iade edildi, stopaj uygulanmadı',
+      trReject.status === 200 && near(domRefunded, domBeforeTr) && near(trReject.json?.withdrawal?.tax_deduction, 0),
+      `HTTP ${trReject.status}, dom bakiye=${domRefunded} (beklenen ${domBeforeTr}), stopaj=${trReject.json?.withdrawal?.tax_deduction}`
     );
 
-    const rejectedInvoice = (await snapshot()).tax_refund_invoices?.find((invoice) => invoice.id === trInvoice.json?.invoice?.id);
+    const rejectedInvoice = (await snapshot()).taxRefundInvoices?.find((invoice) => invoice.id === trInvoice.json?.invoice?.id);
     const approveRejectedInvoice = await api('POST', `/api/v1/admin/tax-refunds/${trInvoice.json?.invoice?.id}/decision`, {
       token: adminToken,
       body: { decision: 'APPROVED' },
@@ -556,9 +557,9 @@ async function main() {
     const swiftReject = await api('PUT', `/api/v1/admin/withdrawals/${swiftWd?.id}`, { token: adminToken, body: { status: 'REJECTED' } });
     const intlRefunded = await balanceOf('C', 'INTERNATIONAL');
     record(
-      'Yurt dışı red sonrası stopaj düşülerek net tutar iade edildi',
-      swiftReject.status === 200 && near(intlRefunded, intlBeforeSwift - 60) && near(swiftReject.json?.withdrawal?.tax_deduction, 60),
-      `HTTP ${swiftReject.status}, intl bakiye=${intlRefunded} (beklenen ${intlBeforeSwift - 60}), stopaj=${swiftReject.json?.withdrawal?.tax_deduction}`
+      'Yurt dışı red sonrası tam tutar iade edildi, stopaj uygulanmadı',
+      swiftReject.status === 200 && near(intlRefunded, intlBeforeSwift) && near(swiftReject.json?.withdrawal?.tax_deduction, 0),
+      `HTTP ${swiftReject.status}, intl bakiye=${intlRefunded} (beklenen ${intlBeforeSwift}), stopaj=${swiftReject.json?.withdrawal?.tax_deduction}`
     );
 
     const sepaReq = await requestWithdrawal(tokC, {
@@ -630,7 +631,7 @@ async function main() {
       token: adminToken,
       body: {},
     });
-    const sepaInvoiceState = (await snapshot()).tax_refund_invoices?.find((invoice) => invoice.id === sepaInvoice.json?.invoice?.id);
+    const sepaInvoiceState = (await snapshot()).taxRefundInvoices?.find((invoice) => invoice.id === sepaInvoice.json?.invoice?.id);
     record(
       'Eksik vergi kararı faturayı otomatik onaylamaz',
       sepaInvoice.status === 201 && emptyTaxDecision.status === 400 &&
@@ -693,7 +694,7 @@ async function main() {
 
 function sumCounters(m) {
   const w = m.wallets;
-  return ['sponsor_wallet', 'monoline_wallet', 'career_pool_wallet', 'infinity_wallet', 'matching_wallet', 'fast_roi_wallet']
+  return ['sponsor_wallet', 'monoline_wallet', 'career_pool_wallet', 'infinity_wallet', 'matching_wallet']
     .reduce((s, k) => s + (w[k] || 0), 0);
 }
 

@@ -296,7 +296,7 @@ export const TechnicalReportModal: React.FC<TechnicalReportModalProps> = ({
                   <span>13. 💎 Monoline 7 Nefis MLM &amp; Komisyon Motoru</span>
                 </div>
                 <p className="text-xs text-slate-400">
-                  Küresel Tek Hat (Global Single Line) üzerinde %20 Direkt Sponsor Primi, %25 7 Derinlik Tek Hat Primi (%7-%5-%4-%3-%2-%2-%2) ve %50 Kariyer Havuzu / Anlık Bonus sistemi.
+                  Küresel Tek Hat (Global Single Line) üzerinde %20 Direkt Sponsor Primi, %25 7 Derinlik Tek Hat Primi (%7-%5-%4-%3-%2-%2-%2) ve %5 sistem havuzu; kalan %50 şirket brüt marjıdır.
                 </p>
               </div>
 
