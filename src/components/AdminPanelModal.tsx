@@ -45,7 +45,8 @@ import {
   Download,
   Gift,
   Database,
-  GitBranch
+  GitBranch,
+  ShieldAlert
 } from 'lucide-react';
 import { db, wipeAllLocalApplicationData } from '../lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
@@ -131,7 +132,9 @@ import { ResellerDetailModal } from './ResellerDetailModal';
 import { DigitalInvoiceModal } from './DigitalInvoiceModal';
 import { CampaignsManagerAdminTab } from './CampaignsManagerAdminTab';
 import { SiteContentAdminTab } from './SiteContentAdminTab';
+import { EthicsGuidelinesAdminTab } from './EthicsGuidelinesAdminTab';
 import { MonolineMlmPortalModal } from './MonolineMlmPortalModal';
+import { SharedDocumentsPanel } from './SharedDocumentsPanel';
 import { 
   downloadInvoicePDF, 
   shareInvoiceViaWhatsAppWithPDF 
@@ -151,7 +154,7 @@ interface AdminPanelModalProps {
 
 export const ADMIN_SESSION_KEY = 'aurabio_admin_session_v1';
 export const ADMIN_TAB_KEY = 'aurabio_admin_tab_v1';
-const ADMIN_TABS = ['members', 'packages', 'resellers', 'dealers', 'devices', 'invoices', 'campaigns', 'scans', 'monoline_sql', 'site_content'] as const;
+const ADMIN_TABS = ['members', 'packages', 'resellers', 'dealers', 'devices', 'invoices', 'campaigns', 'scans', 'monoline_sql', 'site_content', 'ethics_guidelines'] as const;
 type AdminTab = typeof ADMIN_TABS[number];
 const ADMIN_MODULE_LINKS: { id: Exclude<AdminTab, 'monoline_sql'>; label: string }[] = [
   { id: 'members', label: 'Üye & Ödeme Onayları' },
@@ -162,6 +165,7 @@ const ADMIN_MODULE_LINKS: { id: Exclude<AdminTab, 'monoline_sql'>; label: string
   { id: 'invoices', label: 'Dijital E-Fatura Yönetimi' },
   { id: 'campaigns', label: 'Kampanyalar & Fırsatlar' },
   { id: 'site_content', label: 'Site İçerikleri' },
+  { id: 'ethics_guidelines', label: 'Etik Kurallar' },
   { id: 'scans', label: 'Tarama Kayıtları' },
 ];
 
@@ -217,6 +221,7 @@ const [scanActionMsg, setScanActionMsg] = useState<string | null>(null);
   const [invoiceToDelete, setInvoiceToDelete] = useState<DigitalInvoice | null>(null);
   const [isDeletingInvoice, setIsDeletingInvoice] = useState<boolean>(false);
   const [invoicePdfDownloadingId, setInvoicePdfDownloadingId] = useState<string | null>(null);
+  const [isDocumentsOpen, setIsDocumentsOpen] = useState(false);
   const [invoiceWhatsAppSendingId, setInvoiceWhatsAppSendingId] = useState<string | null>(null);
 
   // Device Demo Management State
@@ -1945,6 +1950,18 @@ const [scanActionMsg, setScanActionMsg] = useState<string | null>(null);
                 }`}
               >
                 <span>Site İçerikleri</span>
+              </button>
+
+              <button
+                onClick={() => setAdminTab('ethics_guidelines')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  adminTab === 'ethics_guidelines'
+                    ? 'bg-gradient-to-r from-amber-600/30 via-orange-600/30 to-amber-600/30 text-amber-300 border border-amber-500/50 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                }`}
+              >
+                <ShieldAlert className="w-4 h-4 text-amber-400" />
+                <span>Etik Kurallar</span>
               </button>
 
               <button
@@ -4638,6 +4655,12 @@ const [scanActionMsg, setScanActionMsg] = useState<string | null>(null);
               />
             )}
 
+            {adminTab === 'ethics_guidelines' && (
+              <EthicsGuidelinesAdminTab
+                onSuccessMessage={(msg) => setActionSuccessMsg(msg)}
+              />
+            )}
+
             {adminTab === 'scans' && (
               <div className="space-y-4">
                 {/* Header + Actions */}
@@ -4849,6 +4872,14 @@ const [scanActionMsg, setScanActionMsg] = useState<string | null>(null);
                             {label}{adminModuleCounts[id] !== undefined ? ` (${adminModuleCounts[id]})` : ''}
                           </button>
                         ))}
+                        <button
+                          type="button"
+                          onClick={() => setIsDocumentsOpen(true)}
+                          className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-left text-xs font-semibold text-slate-700 hover:border-emerald-400 hover:bg-emerald-50 transition-colors flex items-center gap-2"
+                        >
+                          <FileText className="w-4 h-4 text-emerald-600" />
+                          Dökümanlar
+                        </button>
                       </div>
                     </section>
                   )}
@@ -4858,6 +4889,22 @@ const [scanActionMsg, setScanActionMsg] = useState<string | null>(null);
                   isAdminAuthenticated={true}
                   onClose={() => setAdminTab('members')}
                 />
+                {isDocumentsOpen && (
+                  <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+                    <div className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-6">
+                      <button
+                        type="button"
+                        onClick={() => setIsDocumentsOpen(false)}
+                        className="absolute right-4 top-4 rounded-lg px-2 py-1 text-sm font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                      >
+                        Kapat
+                      </button>
+                      <div className="pt-8">
+                        <SharedDocumentsPanel access="admin" />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

@@ -86,6 +86,7 @@ import { UserMember, BANK_INFO, ADMIN_PHONE } from '../utils/authManager';
 import { getMemberRegionalPendingUsd, getMemberRegionalUsdBalance } from '../utils/walletRegion';
 import { redirectToDealerRegistrationPortal, syncFrekansWithMonolineEngine } from '../utils/monolineSyncBridge';
 import { getSiteContent } from '../utils/siteContentManager';
+import { DealerEthicsGuidelines } from './DealerEthicsGuidelines';
 import {
   CAREER_TIERS,
   FREKANS_PACKAGES,
@@ -119,6 +120,7 @@ import {
 } from '../utils/invoiceManager';
 import { DealerBusinessCardModal } from './DealerBusinessCardModal';
 import { DigitalInvoiceModal } from './DigitalInvoiceModal';
+import { SharedDocumentsPanel } from './SharedDocumentsPanel';
 import { ScanResult } from '../types';
 import { syncUserScansFromFirestore, deleteScanResult, deleteScanRecordsByIds } from '../utils/storage';
 import { formatUsd } from '../utils/currency';
@@ -134,7 +136,7 @@ interface ResellerDashboardModalProps {
     subTab?: 'mlm_7nefis' | 'mlm_commission' | 'packages' | 'backoffice' | 'monoline' | 'webhook'
   ) => void;
   onGoToCamera?: () => void;
-  initialTab?: 'overview' | 'clients' | 'bayilerim' | 'scans' | 'presentation' | 'packages' | 'share' | 'commissions' | 'invoices' | 'bank' | 'apply';
+  initialTab?: 'overview' | 'clients' | 'bayilerim' | 'scans' | 'presentation' | 'packages' | 'share' | 'commissions' | 'invoices' | 'bank' | 'apply' | 'documents';
 }
 
 export const ResellerDashboardModal: React.FC<ResellerDashboardModalProps> = ({
@@ -152,7 +154,7 @@ export const ResellerDashboardModal: React.FC<ResellerDashboardModalProps> = ({
   const [commissions, setCommissions] = useState<CommissionTransaction[]>([]);
   const [referredUsers, setReferredUsers] = useState<UserMember[]>([]);
   const [referredUserSearch, setReferredUserSearch] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'clients' | 'bayilerim' | 'scans' | 'presentation' | 'packages' | 'share' | 'commissions' | 'invoices' | 'bank' | 'apply'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'overview' | 'clients' | 'bayilerim' | 'scans' | 'presentation' | 'packages' | 'share' | 'commissions' | 'invoices' | 'bank' | 'apply' | 'documents'>(initialTab);
 
   // Dealer's own scan history state
   const [dealerScans, setDealerScans] = useState<ScanResult[]>([]);
@@ -931,6 +933,7 @@ export const ResellerDashboardModal: React.FC<ResellerDashboardModalProps> = ({
         {/* Dealer-Only Back-Office Navigation Bar (No Admin / SQL Panel) */}
         <div className="p-3 rounded-2xl bg-slate-950/90 border border-slate-800 flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
+            <DealerEthicsGuidelines />
             <button
               type="button"
               onClick={() => onOpenMonolineModal?.('backoffice')}
@@ -1274,6 +1277,18 @@ export const ResellerDashboardModal: React.FC<ResellerDashboardModalProps> = ({
                 <span className="px-1.5 py-0.2 bg-purple-950 text-purple-300 border border-purple-500/40 rounded-full text-[10px] font-mono font-bold">
                   {invoices.length}
                 </span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('documents')}
+                className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer ${
+                  activeTab === 'documents'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'text-indigo-400 hover:text-indigo-200 bg-indigo-950/40 border border-indigo-500/30'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Dökümanlar</span>
               </button>
 
               <button
@@ -1899,10 +1914,10 @@ export const ResellerDashboardModal: React.FC<ResellerDashboardModalProps> = ({
                     (s, r) => s + Number(r.totalSalesAmount || 5000),
                     0
                   );
-                  const totalActiveDirects = leftActiveCount + rightActiveCount;
+
                   const missingLeft = Math.max(0, 1 - leftActiveCount);
                   const missingRight = Math.max(0, 1 - rightActiveCount);
-                  const missingFastRoi = Math.max(0, 3 - totalActiveDirects);
+
 
                   return (
                     <div className="space-y-4">
@@ -1977,7 +1992,7 @@ export const ResellerDashboardModal: React.FC<ResellerDashboardModalProps> = ({
                       </div>
 
                       {/* Eksikler & Yeterlilikler Özet Kutusu */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono">
                         <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-slate-800">
                           <div className="text-[10px] text-slate-400">Sol / Sağ Kol Dengesi</div>
                           <div className="text-sm font-bold text-white mt-0.5">
@@ -1987,20 +2002,6 @@ export const ResellerDashboardModal: React.FC<ResellerDashboardModalProps> = ({
                             {missingLeft === 0 && missingRight === 0
                               ? '✓ İki Kol Aktif ve Dengeli'
                               : `Eksikler: Sol (${missingLeft}) / Sağ (${missingRight})`}
-                          </div>
-                        </div>
-
-                        <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-slate-800">
-                          <div className="text-[10px] text-slate-400">
-                            3 Getir Bedavaya Getir (+%15 Fast-ROI)
-                          </div>
-                          <div className="text-sm font-bold text-white mt-0.5">
-                            {Math.min(3, totalActiveDirects)} / 3 Direkt Bayi
-                          </div>
-                          <div className="text-[11px] text-teal-300 mt-0.5">
-                            {missingFastRoi === 0
-                              ? '✓ +%15 Ekstra Bonus (%75 İade) Kazanıldı!'
-                              : `Eksik: +${missingFastRoi} direkt bayi kaydı`}
                           </div>
                         </div>
 
@@ -3792,6 +3793,8 @@ export const ResellerDashboardModal: React.FC<ResellerDashboardModalProps> = ({
             )}
 
             {/* TAB 4: BANK & IBAN SETTINGS */}
+            {activeTab === 'documents' && <SharedDocumentsPanel access="dealer" />}
+
             {activeTab === 'bank' && (
               <div className="max-w-2xl mx-auto space-y-5 animate-fade-in">
                 <div className="p-6 rounded-3xl bg-slate-950/80 border border-slate-800 space-y-4">

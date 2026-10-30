@@ -12,6 +12,7 @@ import {
   Unsubscribe 
 } from 'firebase/firestore';
 import { formatUsd } from './currency';
+import { getPackagePriceForRegion, resolveMemberRegion } from './walletRegion';
 import { db, ensureFirebaseAuthUser } from '../lib/firebase';
 import { loginAdmin, loginAdminWithMessage } from './adminSession';
 
@@ -819,6 +820,7 @@ export function getWhatsAppDealerApplicationUrl(data: {
   email?: string;
   packageName?: string;
   packagePriceText?: string;
+  countryCode?: string;
   dealerDetails?: DealerDetails;
 }): string {
   const company = data.dealerDetails?.companyName || 'Belirtilmedi';
@@ -826,9 +828,12 @@ export function getWhatsAppDealerApplicationUrl(data: {
   const phone = data.dealerDetails?.whatsapp || data.phone || 'Belirtilmedi';
   const taxInfo = data.dealerDetails?.taxNumber ? `${data.dealerDetails.taxNumber} (${data.dealerDetails.taxOffice || '-'})` : 'Bireysel / Belirtilmedi';
   const address = data.dealerDetails?.address ? `\nAdres: ${data.dealerDetails.address}` : '';
+  const countryCode = (data.countryCode || 'TR').trim().toUpperCase();
+  const isInternational = resolveMemberRegion(countryCode) === 'INTERNATIONAL';
+  const countryInfo = `\n🌍 Kayıt Ülkesi: ${countryCode}${isInternational ? ' (3x Yurt Dışı)' : ' (Türkiye)'}`;
   const pkgInfo = data.packageName ? `\n🏷️ Seçilen Bayilik Paketi: ${data.packageName} ${data.packagePriceText ? `(${data.packagePriceText})` : ''}` : '';
 
-  const text = `🌟 Yeni Bayilik Başvurusu!\n👤 Ad Soyad: ${data.fullName}\n🏢 Firma: ${company}\n📱 Telefon: ${phone}\n💼 Faaliyet Alanı: ${field}\n📋 Vergi Bilgisi: ${taxInfo}${address}${pkgInfo}\n\nOnaylamak ve kredi havuzunu aktifleştirmek için Yönetici Paneline Gidin.`;
+  const text = `🌟 Yeni Bayilik Başvurusu!\n👤 Ad Soyad: ${data.fullName}${countryInfo}\n🏢 Firma: ${company}\n📱 Telefon: ${phone}\n💼 Faaliyet Alanı: ${field}\n📋 Vergi Bilgisi: ${taxInfo}${address}${pkgInfo}\n\nOnaylamak ve kredi havuzunu aktifleştirmek için Yönetici Paneline Gidin.`;
 
   return `https://wa.me/${ADMIN_PHONE_CLEAN}?text=${encodeURIComponent(text)}`;
 }
@@ -916,6 +921,7 @@ export async function registerMember(
       hasClaimedWelcomeBonus,
       markWelcomeBonusClaimed,
       recordCreditTransaction,
+      DEFAULT_DEALER_PACKAGES,
     } = await import('./resellerManager');
     const personalReferralCode = dealerApplicationData?.referralCode?.trim().toUpperCase() || generateUniqueReferralCode('AURA-BAYI');
 
@@ -1078,14 +1084,18 @@ export async function registerMember(
       }
     }
 
-    const chosenDealerPkg = DEFAULT_MEMBERSHIP_PACKAGES.find(p => p.id === selectedPackage);
+    const chosenDealerPkg = DEFAULT_DEALER_PACKAGES.find((pkg) => pkg.id === effectiveStarterPkg);
+    const regionalPackagePrice = chosenDealerPkg
+      ? getPackagePriceForRegion(chosenDealerPkg.price, resolveMemberRegion(cleanCountryCode))
+      : undefined;
 
     const whatsappDealerUrl = getWhatsAppDealerApplicationUrl({
       fullName: cleanFullName,
       phone: cleanPhone,
       email: cleanEmail,
       packageName: chosenDealerPkg?.name || selectedPackage,
-      packagePriceText: chosenDealerPkg?.priceText,
+      packagePriceText: regionalPackagePrice === undefined ? undefined : formatUsd(regionalPackagePrice),
+      countryCode: cleanCountryCode,
       dealerDetails: completeDealerDetails
     });
 

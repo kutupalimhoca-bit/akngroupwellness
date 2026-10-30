@@ -8,7 +8,7 @@ import {
   Plus,
   Search,
   ShieldCheck,
-  TrendingUp,
+
   Users,
 } from 'lucide-react';
 import {
@@ -217,8 +217,6 @@ export const MonolineTimelineView: React.FC<MonolineTimelineViewProps> = ({
     const missingLeftBranch = Math.max(0, reqPerBranch - branchAnalysis.leftActiveCount);
     const missingRightBranch = Math.max(0, reqPerBranch - branchAnalysis.rightActiveCount);
 
-    const fastRoiCount = Math.min(3, activeDirects);
-    const missingFastRoi = Math.max(0, 3 - activeDirects);
 
     return {
       currentTier,
@@ -232,8 +230,7 @@ export const MonolineTimelineView: React.FC<MonolineTimelineViewProps> = ({
       reqPerBranch,
       missingLeftBranch,
       missingRightBranch,
-      fastRoiCount,
-      missingFastRoi,
+
       isNextTierFullyMet:
         missingDirects === 0 &&
         missingVolume === 0 &&
@@ -721,7 +718,7 @@ export const MonolineTimelineView: React.FC<MonolineTimelineViewProps> = ({
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
                 {/* 1. Doğrudan Aktif Bayi Şartı */}
                 <div className="p-3.5 rounded-xl bg-slate-950/90 border border-slate-800 space-y-1.5">
                   <div className="flex items-center justify-between text-slate-400">
@@ -801,32 +798,6 @@ export const MonolineTimelineView: React.FC<MonolineTimelineViewProps> = ({
                     {qualificationAnalysis.missingVolume === 0
                       ? '✓ Ciro Yeterliliği Sağlandı'
                       : `Eksik Ciro: ${formatUsd(qualificationAnalysis.missingVolume ?? 0)}`}
-                  </div>
-                </div>
-
-                {/* 4. 3 Getir Bedavaya Getir (Fast-ROI +%15) */}
-                <div className="p-3.5 rounded-xl bg-slate-950/90 border border-slate-800 space-y-1.5">
-                  <div className="flex items-center justify-between text-slate-400">
-                    <span>4. 3 Getir Bedavaya Getir</span>
-                    {qualificationAnalysis.missingFastRoi === 0 ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    ) : (
-                      <TrendingUp className="w-4 h-4 text-teal-400" />
-                    )}
-                  </div>
-                  <div className="text-base font-black font-mono text-white">
-                    {qualificationAnalysis.fastRoiCount} / 3 Direkt Satış
-                  </div>
-                  <div
-                    className={`text-[11px] font-semibold ${
-                      qualificationAnalysis.missingFastRoi === 0
-                        ? 'text-emerald-400'
-                        : 'text-teal-300'
-                    }`}
-                  >
-                    {qualificationAnalysis.missingFastRoi === 0
-                      ? '✓ +%15 Fast-ROI (Toplam %75 İade) Kazanıldı!'
-                      : `Eksik: ${qualificationAnalysis.missingFastRoi} satış sonra +%15 Ekstra Bonus!`}
                   </div>
                 </div>
               </div>

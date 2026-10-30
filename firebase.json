@@ -31,6 +31,41 @@
         "function": "handleOrderCommission"
       },
       {
+        "source": "/api/v1/documents",
+        "function": {
+          "functionId": "sharedDocuments",
+          "region": "europe-west1"
+        }
+      },
+      {
+        "source": "/api/v1/documents/**",
+        "function": {
+          "functionId": "sharedDocuments",
+          "region": "europe-west1"
+        }
+      },
+      {
+        "source": "/api/v1/admin/documents",
+        "function": {
+          "functionId": "sharedDocuments",
+          "region": "europe-west1"
+        }
+      },
+      {
+        "source": "/api/v1/admin/login",
+        "function": {
+          "functionId": "sharedDocuments",
+          "region": "europe-west1"
+        }
+      },
+      {
+        "source": "/api/v1/member/session",
+        "function": {
+          "functionId": "sharedDocuments",
+          "region": "europe-west1"
+        }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

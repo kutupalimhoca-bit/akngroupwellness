@@ -36,12 +36,11 @@ import {
   getWhatsAppDealerApplicationUrl 
 } from '../utils/authManager';
 import { DealerDetails } from '../types';
-import { MEMBER_COUNTRY_OPTIONS } from '../utils/walletRegion';
+import { getPackagePriceForRegion, MEMBER_COUNTRY_OPTIONS, resolveMemberRegion } from '../utils/walletRegion';
+import { formatUsd } from '../utils/currency';
 import { 
   Reseller, 
   DealerPackage,
-  getDealerPackages,
-  subscribeToDealerPackages,
   DEFAULT_DEALER_PACKAGES,
   getActiveResellers, 
   getResellerByCode, 
@@ -108,7 +107,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // Dealer Application Specific State (AKN Global Spec)
   const [isDealerRequested, setIsDealerRequested] = useState<boolean>(initialIsDealer);
   const [membershipPackages, setMembershipPackages] = useState<MembershipPackage[]>(() => getMembershipPackages());
-  const [dealerPackages, setDealerPackages] = useState<DealerPackage[]>(() => getDealerPackages());
+  const [dealerPackages] = useState<DealerPackage[]>(DEFAULT_DEALER_PACKAGES);
   const [selectedPackageId, setSelectedPackageId] = useState<string>('pkg-5k');
 
   const [dealerCompanyName, setDealerCompanyName] = useState<string>('');
@@ -141,18 +140,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Live subscription to packages
+  const registrationRegion = resolveMemberRegion(regCountryCode);
+  const isInternationalRegistration = registrationRegion === 'INTERNATIONAL';
+  const getRegionalDealerPackage = (pkg: DealerPackage): DealerPackage => {
+    const price = getPackagePriceForRegion(pkg.price, registrationRegion);
+    return {
+      ...pkg,
+      price,
+      priceText: formatUsd(price),
+      unitCostText: `${formatUsd(price / pkg.scanCredits, 2)} / Seans Maliyeti`,
+    };
+  };
+
+  // Live subscription to membership packages
   useEffect(() => {
     const unsubMember = subscribeToMembershipPackages((pkgs) => {
       if (pkgs && pkgs.length > 0) setMembershipPackages(pkgs);
     });
-    const unsubDealer = subscribeToDealerPackages((dpkgs) => {
-      if (dpkgs && dpkgs.length > 0) setDealerPackages(dpkgs);
-    });
-    return () => {
-      unsubMember();
-      unsubDealer();
-    };
+    return () => unsubMember();
   }, []);
 
   // Load and check referral and mode on modal open
@@ -1018,6 +1023,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 {dealerPackages.map((pkg) => {
                   const isSelected = selectedPackageId === pkg.id;
+                  const regionalPackage = getRegionalDealerPackage(pkg);
                   return (
                     <div
                       key={pkg.id}
@@ -1036,7 +1042,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           }`}>
                             {pkg.badge}
                           </span>
-                          {isSelected && <Check className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                          <div className="flex items-center gap-1.5">
+                            {isInternationalRegistration && <span className="px-1.5 py-0.5 rounded-full bg-sky-500/15 border border-sky-400/40 text-sky-300 text-[8px] font-black">3x Yurt Dışı</span>}
+                            {isSelected && <Check className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                          </div>
                         </div>
                       )}
 
@@ -1052,10 +1061,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <div className="pt-2 mt-2 border-t border-slate-800/80">
                         <div className="flex items-baseline justify-between mb-2">
                           <div className="text-sm font-black text-amber-300 font-mono">
-                            {pkg.priceText}
+                            {regionalPackage.priceText}
                           </div>
                           <div className="text-[9px] text-slate-400 font-medium">
-                            ${pkg.unitCostText?.split(' ')[0] || ''}/seans
+                            {formatUsd(regionalPackage.price / pkg.scanCredits, 2)}/seans
                           </div>
                         </div>
 
@@ -1089,8 +1098,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   );
                 })}
               </div>
-              <p className="text-[10px] text-amber-300/80 italic">
-                * Bayi seans kredilerinin son kullanma tarihi yoktur; danışanlarınıza tarama ve seans uyguladıkça havuzunuzdan düşer. Paket detaylarını ve kar marjlarını "İncele" butonuna tıklayarak görüntüleyebilirsiniz.
+              <p className={`text-[10px] italic ${isInternationalRegistration ? 'text-sky-300' : 'text-amber-300/80'}`}>
+                {isInternationalRegistration
+                  ? 'Yurt dışı kayıtlarda tüm paket ve seans bedelleri 3x uygulanır. Kartlardaki tutarlar seçtiğiniz ülkeye göre güncellenir.'
+                  : 'Türkiye kayıtlarında paket fiyatları yerel katalog tutarlarıdır. Bayi seans kredilerinin son kullanma tarihi yoktur; paket ayrıntılarını “İncele” ile görüntüleyebilirsiniz.'}
               </p>
             </div>
 
@@ -1172,7 +1183,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
       {/* Package Detail Modal for in-depth inspection */}
       <PackageDetailModal
-        pkg={inspectingPackage}
+        pkg={inspectingPackage ? getRegionalDealerPackage(inspectingPackage) : null}
         isOpen={Boolean(inspectingPackage)}
         onClose={() => setInspectingPackage(null)}
         onSelectPackage={(pkg) => {
@@ -1180,6 +1191,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           setInspectingPackage(null);
         }}
         isDealerMode={true}
+        isInternational={isInternationalRegistration}
       />
 
       {/* Legal Contracts Modal */}

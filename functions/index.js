@@ -6,7 +6,8 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
-const { randomBytes } = require("crypto");
+const { createHmac, randomBytes, timingSafeEqual } = require("crypto");
+const sharedDocumentsBucket = admin.storage().bucket("akngroupwellness.firebasestorage.app");
 
 const PACKAGE_PRICES = {
   PKG_MINI_DENEME: 101,
@@ -1025,6 +1026,189 @@ exports.recordContractApprovals = functions.region("europe-west1").https.onReque
     return res.status(500).json({ status: "error", message: "Sözleşme onayları kaydedilemedi." });
   }
 });
+
+const SHARED_DOCUMENT_MAX_BYTES = 6 * 1024 * 1024;
+const SHARED_DOCUMENT_TYPES = {
+  ".pdf": "application/pdf",
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".xls": "application/vnd.ms-excel",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".ppt": "application/vnd.ms-powerpoint",
+  ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+};
+
+function issueSharedDocumentToken(userId, role, secretName, ttlMs) {
+  const secret = process.env[secretName];
+  if (!secret) return null;
+  const payload = Buffer.from(JSON.stringify({ sub: userId, role, exp: Date.now() + ttlMs })).toString("base64url");
+  const signature = createHmac("sha256", secret).update(payload).digest("base64url");
+  return `${payload}.${signature}`;
+}
+
+function hashSharedDocumentPassword(password) {
+  let hash = 0;
+  for (let index = 0; index < password.length; index += 1) {
+    hash = ((hash << 5) - hash) + password.charCodeAt(index);
+    hash |= 0;
+  }
+  return `AKN_PWD_${Math.abs(hash).toString(16)}`;
+}
+
+function verifySharedDocumentToken(token, role, secretName) {
+  const secret = process.env[secretName];
+  const [payload, signature, extra] = String(token || "").split(".");
+  if (!secret || !payload || !signature || extra !== undefined) return null;
+  const expected = createHmac("sha256", secret).update(payload).digest("base64url");
+  const actualBytes = Buffer.from(signature);
+  const expectedBytes = Buffer.from(expected);
+  if (actualBytes.length !== expectedBytes.length || !timingSafeEqual(actualBytes, expectedBytes)) return null;
+  try {
+    const claims = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    return claims.role === role && typeof claims.exp === "number" && claims.exp > Date.now() && typeof claims.sub === "string"
+      ? claims.sub
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function sharedDocumentAccess(req) {
+  const header = req.get("authorization") || "";
+  if (!header.startsWith("Bearer ")) return null;
+  const token = header.slice("Bearer ".length).trim();
+  if (verifySharedDocumentToken(token, "ADMIN", "ADMIN_JWT_SECRET")) return "admin";
+  if (verifySharedDocumentToken(token, "MEMBER", "MEMBER_JWT_SECRET")) return "dealer";
+  return null;
+}
+
+function sharedDocumentResponse(document) {
+  return {
+    id: document.id,
+    name: document.name,
+    mimeType: document.mimeType,
+    size: document.size,
+    uploadedAt: document.uploadedAt,
+  };
+}
+
+exports.sharedDocuments = functions
+  .runWith({ secrets: ["ADMIN_PASSWORD", "ADMIN_SECRET_PIN", "ADMIN_JWT_SECRET", "MEMBER_JWT_SECRET"] })
+  .region("europe-west1")
+  .https.onRequest(async (req, res) => {
+    if (req.method === "POST" && req.path === "/api/v1/admin/login") {
+      const email = String(req.body?.email || "").trim().toLowerCase();
+      const password = String(req.body?.password || "");
+      const acceptedPasswords = [process.env.ADMIN_PASSWORD, process.env.ADMIN_SECRET_PIN].filter(Boolean);
+      const passwordMatches = acceptedPasswords.some((expectedPassword) =>
+        password.length === expectedPassword.length && timingSafeEqual(Buffer.from(password), Buffer.from(expectedPassword))
+      );
+      if (email !== "psikologabdulkadirkan@gmail.com" || !passwordMatches) {
+        return res.status(401).json({ status: "error", message: "E-posta veya şifre hatalı." });
+      }
+      const token = issueSharedDocumentToken("ADMIN-AKN-01", "ADMIN", "ADMIN_JWT_SECRET", 8 * 60 * 60 * 1000);
+      if (!token) return res.status(503).json({ status: "error", message: "Yönetici oturumu yapılandırılmamış." });
+      return res.json({ status: "success", token, expires_in_ms: 8 * 60 * 60 * 1000 });
+    }
+
+    if (req.method === "POST" && req.path === "/api/v1/member/session") {
+      const email = String(req.body?.email || "").trim().toLowerCase();
+      const password = String(req.body?.password || "");
+      if (!email || !password) return res.status(400).json({ status: "error", message: "E-posta ve şifre zorunludur." });
+      try {
+        const snapshot = await db.collection("users").where("email", "==", email).limit(1).get();
+        const userDoc = snapshot.docs[0];
+        const user = userDoc?.data() || {};
+        const userId = String(user.user_id || user.uid || userDoc?.id || "");
+        const isDealer = user.role === "dealer" || user.dealerStatus === "approved";
+        if (!userId || !isDealer || user.passwordHash !== hashSharedDocumentPassword(password) || user.isLocked || user.is_locked) {
+          return res.status(401).json({ status: "error", message: "E-posta veya şifre hatalı." });
+        }
+        const token = issueSharedDocumentToken(userId, "MEMBER", "MEMBER_JWT_SECRET", 4 * 60 * 60 * 1000);
+        if (!token) return res.status(503).json({ status: "error", message: "Bayi oturumu yapılandırılmamış." });
+        return res.json({ status: "success", token, user_id: userId, expires_in_ms: 4 * 60 * 60 * 1000 });
+      } catch (error) {
+        console.error("Member document session creation failed:", error);
+        return res.status(500).json({ status: "error", message: "Bayi oturumu oluşturulamadı." });
+      }
+    }
+
+    const access = sharedDocumentAccess(req);
+    if (!access) return res.status(401).json({ status: "error", message: "Geçerli bayi veya yönetici oturumu gereklidir." });
+
+    if (req.method === "GET" && req.path === "/api/v1/documents") {
+      try {
+        const snapshot = await db.collection("shared_documents").orderBy("uploadedAt", "desc").get();
+        return res.json({ documents: snapshot.docs.map((document) => sharedDocumentResponse(document.data())) });
+      } catch (error) {
+        console.error("Shared document listing failed:", error);
+        return res.status(500).json({ status: "error", message: "Doküman listesi alınamadı." });
+      }
+    }
+
+    if (req.method === "POST" && req.path === "/api/v1/admin/documents") {
+      if (access !== "admin") return res.status(403).json({ status: "error", message: "Doküman yükleme yalnızca yöneticilere açıktır." });
+      const rawName = String(req.body?.name || "").normalize("NFC");
+      const name = rawName.split(/[\\/]/).pop().replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 180);
+      const extension = name.slice(name.lastIndexOf(".")).toLowerCase();
+      const mimeType = SHARED_DOCUMENT_TYPES[extension];
+      const dataBase64 = String(req.body?.dataBase64 || "");
+      if (!name || !mimeType || !dataBase64) {
+        return res.status(400).json({ status: "error", message: "Geçerli bir doküman dosyası seçin." });
+      }
+      const data = Buffer.from(dataBase64, "base64");
+      if (data.length === 0 || data.length > SHARED_DOCUMENT_MAX_BYTES || data.toString("base64") !== dataBase64) {
+        return res.status(400).json({ status: "error", message: "Dosya boş, geçersiz veya 6 MB sınırını aşıyor." });
+      }
+
+      const id = randomBytes(16).toString("hex");
+      const storagePath = `shared-documents/${id}`;
+      const uploadedAt = new Date().toISOString();
+      const metadata = { id, name, mimeType, size: data.length, uploadedAt, storagePath };
+      try {
+        await sharedDocumentsBucket.file(storagePath).save(data, {
+          resumable: false,
+          metadata: { contentType: mimeType, cacheControl: "private, no-store" },
+        });
+        try {
+          await db.collection("shared_documents").doc(id).create(metadata);
+        } catch (error) {
+          await sharedDocumentsBucket.file(storagePath).delete().catch(() => undefined);
+          throw error;
+        }
+        return res.status(201).json({ status: "success", document: sharedDocumentResponse(metadata) });
+      } catch (error) {
+        console.error("Shared document upload failed:", error);
+        return res.status(500).json({ status: "error", message: "Doküman yüklenemedi. Depolama ayarlarını kontrol edin." });
+      }
+    }
+
+    const downloadMatch = req.path.match(/^\/api\/v1\/documents\/([a-f0-9]{32})\/download$/);
+    if (req.method === "GET" && downloadMatch) {
+      try {
+        const snapshot = await db.collection("shared_documents").doc(downloadMatch[1]).get();
+        if (!snapshot.exists) return res.status(404).json({ status: "error", message: "Doküman bulunamadı." });
+        const document = snapshot.data();
+        const [data] = await sharedDocumentsBucket.file(document.storagePath).download();
+        const fallbackName = document.id;
+        res.set("Content-Type", document.mimeType);
+        res.set("Content-Length", String(document.size));
+        res.set("Content-Disposition", `attachment; filename="${fallbackName}"; filename*=UTF-8''${encodeURIComponent(document.name)}`);
+        res.set("X-Content-Type-Options", "nosniff");
+        res.set("Cache-Control", "private, no-store");
+        return res.status(200).send(data);
+      } catch (error) {
+        console.error("Shared document download failed:", error);
+        return res.status(500).json({ status: "error", message: "Doküman indirilemedi." });
+      }
+    }
+
+    return res.status(404).json({ status: "error", message: "Doküman uç noktası bulunamadı." });
+  });
 
 exports.releasePendingCommissionsCron = functions
   .region("europe-west1")

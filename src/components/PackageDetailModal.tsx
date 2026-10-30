@@ -30,6 +30,7 @@ interface PackageDetailModalProps {
   onSelectPackage?: (pkg: any) => void;
   buttonLabel?: string;
   isDealerMode?: boolean;
+  isInternational?: boolean;
 }
 
 export const PackageDetailModal: React.FC<PackageDetailModalProps> = ({
@@ -39,6 +40,7 @@ export const PackageDetailModal: React.FC<PackageDetailModalProps> = ({
   onSelectPackage,
   buttonLabel = 'Bu Paketi Seç & Devam Et',
   isDealerMode = false,
+  isInternational = false,
 }) => {
   if (!isOpen || !pkg) return null;
 
@@ -79,6 +81,11 @@ export const PackageDetailModal: React.FC<PackageDetailModalProps> = ({
                 {pkg.badge && (
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40">
                     {pkg.badge}
+                  </span>
+                )}
+                {isInternational && (
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-sky-500/15 text-sky-300 border border-sky-400/40">
+                    3x Yurt Dışı
                   </span>
                 )}
               </div>
@@ -134,6 +141,12 @@ export const PackageDetailModal: React.FC<PackageDetailModalProps> = ({
               <div className="text-[9px] text-slate-500">Krediler Asla Yanmaz</div>
             </div>
           </div>
+
+          {isInternational && (
+            <div className="p-3 rounded-xl bg-sky-500/10 border border-sky-400/30 text-sky-200 text-xs">
+              Seçilen yurt dışı ülke için paket fiyatı ve seans bedeli 3 kat uygulanır.
+            </div>
+          )}
 
           {/* Target Audience & Overview */}
           <div className="p-4 rounded-2xl bg-slate-950/90 border border-slate-800 space-y-2">

@@ -6,6 +6,10 @@ import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import { createPaymentProvider, PaymentProviderError } from './server/paymentProviders';
 import {
+  DEFAULT_ETHICS_GUIDELINES_CONTENT,
+  normalizeEthicsGuidelinesContent,
+} from './src/utils/ethicsGuidelinesContent';
+import {
   convertTryToUsd,
   getMemberRegionalPendingUsd,
   getMemberRegionalUsdBalance,
@@ -151,6 +155,8 @@ function runInAtomicTransaction<T>(fn: () => T | Promise<T>): Promise<T> {
 }
 
 // State stores
+let ethicsGuidelinesContent = DEFAULT_ETHICS_GUIDELINES_CONTENT;
+const ethicsGuidelinesClients = new Set<express.Response>();
 let members: MonolineMember[] = [];
 const memberCredentials = new Map<string, { salt: string; hash: string }>();
 // Once a credit change happens on the server, Frekans sync must not overwrite that balance with a stale copy.
@@ -210,6 +216,14 @@ let v2ArchitectureConfig: V2ArchitectureConfig = {
 let withdrawalRequests: WithdrawalRequestRecord[] = [];
 let taxRefundInvoices: TaxRefundInvoiceRecord[] = [];
 let nextTaxRefundId = 1;
+const sharedDocuments = new Map<string, {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  uploadedAt: string;
+  data: Buffer;
+}>();
 let feedbackTickets: DealerFeedbackTicket[] = [];
 let nextTicketNumber = 104;
 let userRewardsLog: UserRewardLogRecord[] = [];
@@ -3684,6 +3698,21 @@ function requireAdminOrOwnMember(
   next();
 }
 
+function requireDocumentViewer(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    res.status(401).json({ status: 'error', message: 'Bayi veya yönetici oturumu gereklidir.' });
+    return;
+  }
+  const token = authHeader.slice('Bearer '.length).trim();
+  const userId = verifyAdminToken(token) || verifyMemberToken(token);
+  if (!userId) {
+    res.status(403).json({ status: 'error', message: 'Oturum geçersiz veya süresi dolmuş.' });
+    return;
+  }
+  next();
+}
+
 async function startServer() {
   const app = express();
   app.use(express.json({ limit: '50mb' }));
@@ -3769,8 +3798,104 @@ async function startServer() {
     });
   });
 
+  app.get('/api/v1/documents', requireDocumentViewer, (_req, res) => {
+    const documents = [...sharedDocuments.values()]
+      .sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt))
+      .map(({ data: _data, ...document }) => document);
+    res.json({ documents });
+  });
+
+  app.post('/api/v1/admin/documents', requireAdminJwt, (req, res) => {
+    const name = path.basename(String(req.body?.name || '').replace(/\\\\/g, '/')).replace(/[\\u0000-\\u001f\\u007f]/g, '').trim().slice(0, 180);
+    const extension = path.extname(name).toLowerCase();
+    const mimeTypes: Record<string, string> = {
+      '.pdf': 'application/pdf',
+      '.doc': 'application/msword',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.xls': 'application/vnd.ms-excel',
+      '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      '.ppt': 'application/vnd.ms-powerpoint',
+      '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.webp': 'image/webp',
+    };
+    const dataBase64 = String(req.body?.dataBase64 || '');
+    if (!name || !mimeTypes[extension] || !dataBase64) {
+      res.status(400).json({ status: 'error', message: 'Geçerli bir doküman dosyası seçin.' });
+      return;
+    }
+    const data = Buffer.from(dataBase64, 'base64');
+    if (data.length === 0 || data.length > 6 * 1024 * 1024 || data.toString('base64') !== dataBase64) {
+      res.status(400).json({ status: 'error', message: 'Dosya boş, geçersiz veya 6 MB sınırını aşıyor.' });
+      return;
+    }
+    const id = randomBytes(16).toString('hex');
+    const document = {
+      id,
+      name,
+      mimeType: mimeTypes[extension],
+      size: data.length,
+      uploadedAt: new Date().toISOString(),
+      data,
+    };
+    sharedDocuments.set(id, document);
+    res.status(201).json({ status: 'success', document: { ...document, data: undefined } });
+  });
+
+  app.get('/api/v1/documents/:documentId/download', requireDocumentViewer, (req, res) => {
+    const document = sharedDocuments.get(req.params.documentId);
+    if (!document) {
+      res.status(404).json({ status: 'error', message: 'Doküman bulunamadı.' });
+      return;
+    }
+    const fallbackName = document.id;
+    res.setHeader('Content-Type', document.mimeType);
+    res.setHeader('Content-Length', document.size);
+    res.setHeader('Content-Disposition', `attachment; filename="${fallbackName}"; filename*=UTF-8''${encodeURIComponent(document.name)}`);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.send(document.data);
+  });
+
   app.get('/api/v1/state', (_req, res) => {
     res.json(buildStateResponse());
+  });
+
+  app.get('/api/v1/ethics-guidelines', (_req, res) => {
+    res.json({ content: ethicsGuidelinesContent });
+  });
+
+  app.get('/api/v1/ethics-guidelines/stream', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+
+    const sendContent = () => res.write(`data: ${JSON.stringify({ content: ethicsGuidelinesContent })}\n\n`);
+    ethicsGuidelinesClients.add(res);
+    sendContent();
+    const heartbeat = setInterval(() => res.write(': keep-alive\n\n'), 25000);
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      ethicsGuidelinesClients.delete(res);
+    });
+  });
+
+  app.put('/api/v1/admin/ethics-guidelines', requireAdminJwt, (req, res) => {
+    const content = req.body?.content;
+    if (typeof content !== 'string' || !content.trim() || content.length > 40000) {
+      res.status(400).json({ status: 'error', message: 'Etik kurallar metni boş olamaz ve 40.000 karakteri aşamaz.' });
+      return;
+    }
+
+    ethicsGuidelinesContent = normalizeEthicsGuidelinesContent(content);
+    ethicsGuidelinesClients.forEach((client) => {
+      client.write(`data: ${JSON.stringify({ content: ethicsGuidelinesContent })}\n\n`);
+    });
+    res.json({ status: 'success', content: ethicsGuidelinesContent });
   });
 
   // ============================================================================
@@ -5190,7 +5315,6 @@ async function startServer() {
         country_code,
         sponsor_id,
         initial_package_id,
-        initial_order_amount,
         manual_career_override,
         skip_initial_order,
         session_credits,
@@ -5365,10 +5489,7 @@ async function startServer() {
           return { newMember, tx: null };
         }
 
-        const orderAmt =
-          initial_order_amount && Number(initial_order_amount) > 0
-            ? Number(initial_order_amount)
-            : PACKAGES[pkgKey].defaultPrice;
+        const orderAmt = getPackageOrderAmount(newUserId, pkgKey);
 
         const tx = processOrderCommission({
           user_id: newUserId,

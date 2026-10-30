@@ -13,6 +13,7 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
+  FileText,
   GitBranch,
   Key,
   Lock,
@@ -67,6 +68,8 @@ import {
 } from '../utils/walletRegion';
 import { recordUserContractApprovals } from '../utils/paymentProcessor';
 import { DealerRegionalUsdPanel } from './DealerRegionalUsdPanel';
+import { DealerEthicsGuidelines } from './DealerEthicsGuidelines';
+import { SharedDocumentsPanel } from './SharedDocumentsPanel';
 
 interface DealerBackOfficeViewProps {
   members: MonolineMember[];
@@ -219,7 +222,7 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
   feedbackTickets = [],
 }) => {
   const [subTab, setSubTab] = useState<
-    'wallet' | 'activity' | 'referral' | 'network' | 'security' | 'plaque' | 'feedback'
+    'wallet' | 'activity' | 'referral' | 'network' | 'security' | 'plaque' | 'feedback' | 'documents'
   >('wallet');
   const [activeRegionPanel, setActiveRegionPanel] = useState<MemberRegion | null>(null);
 
@@ -1700,8 +1703,7 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
         totalVol: 0,
         reqVol: 5000,
         missingVol: 5000,
-        fastRoiCount: 0,
-        missingFastRoi: 3,
+
         nextTierLevel: 2,
       };
     }
@@ -1766,8 +1768,6 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
     );
     const missingVol = Math.max(0, reqVol - totalVol);
 
-    const fastRoiCount = Math.min(3, activeDirects);
-    const missingFastRoi = Math.max(0, 3 - activeDirects);
 
     return {
       leftMembers,
@@ -1785,8 +1785,7 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
       totalVol,
       reqVol,
       missingVol,
-      fastRoiCount,
-      missingFastRoi,
+
       nextTierLevel: nextTier.level,
     };
   }, [member, downlineSubDealers]);
@@ -1838,6 +1837,9 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
 
   return (
     <div className="space-y-8">
+      <div className="flex justify-end">
+        <DealerEthicsGuidelines />
+      </div>
       {/* AKTİFLİK SÜRESİ GERİ SAYIMI & ÇEKİM ŞARTI ÖZET PANELİ */}
       <section
         className={`rounded-2xl p-6 border-2 shadow-xs transition-all ${
@@ -2318,6 +2320,20 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
               )}
             </span>
           </button>
+          {!isAdminAuthenticated && (
+            <button
+              type="button"
+              onClick={() => setSubTab('documents')}
+              className={`px-3.5 py-2 text-xs font-bold rounded-md transition-all cursor-pointer whitespace-nowrap inline-flex items-center gap-1.5 ${
+                subTab === 'documents'
+                  ? 'bg-indigo-700 text-white shadow-xs'
+                  : 'bg-indigo-50 text-indigo-900 hover:bg-indigo-100 border border-indigo-200'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>8. Dökümanlar</span>
+            </button>
+          )}
         </div>
       </section>
 
@@ -2471,17 +2487,7 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
                   <strong>Bayilik Başvurusu / Kayıt</strong> ekranına yönlendirilirsiniz ve sponsor/referans alanı otomatik olarak sizin adınıza (<strong>{member.full_name} — {member.ref_code}</strong>) kilitlenir.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSubTab('network');
-                      setShowNetworkAddModal(true);
-                    }}
-                    className="flex-1 py-3 px-4 bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm text-xs"
-                  >
-                    <UserPlus className="w-4 h-4" />
-                    <span>⚡ Doğrudan Alt Ekibe Bayi Ekle (Şifreli &amp; Sol/Sağ Kol Seçimli)</span>
-                  </button>
+
                   <button
                     type="button"
                     onClick={() =>
@@ -3878,11 +3884,20 @@ Paket Alarak Aktifliği Yenile →
             <div className="flex flex-wrap items-center gap-2 self-start">
               <button
                 type="button"
-                onClick={() => setShowNetworkAddModal(!showNetworkAddModal)}
+                onClick={() => {
+                  setShowNetworkAddModal(false);
+                  redirectToDealerRegistrationPortal({
+                    user_id: member.user_id,
+                    full_name: member.full_name,
+                    ref_code: member.ref_code,
+                    email: member.email,
+                    phone: member.phone,
+                  });
+                }}
                 className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer shadow-xs"
               >
                 <UserPlus className="w-4 h-4" />
-                <span>{showNetworkAddModal ? 'Formu Kapat' : '+ Alt Ekibe Yeni Bayi Ekle (Şifreli)'}</span>
+                <span>+ Alt Ekibe Yeni Bayi Ekle (Şifreli)</span>
               </button>
 
               <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
@@ -4311,7 +4326,7 @@ Paket Alarak Aktifliği Yenile →
               </div>
 
               {/* EKSİKLER & YETERLİLİKLER ÖZET BARI */}
-              <div className="p-4 rounded-2xl bg-slate-900 text-white grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs font-mono">
+              <div className="p-4 rounded-2xl bg-slate-900 text-white grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
                 <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
                   <div className="text-[10px] text-slate-400">
                     Hedef ({branchAndQualificationStats.nextTierLevel}. Kariyer Seviyesi) Direkt Bayi
@@ -4349,17 +4364,6 @@ Paket Alarak Aktifliği Yenile →
                     {branchAndQualificationStats.missingVol === 0
                       ? '✓ Ciro Tamam'
                       : `Eksik: ${branchAndQualificationStats.missingVol.toLocaleString('tr-TR')} $`}
-                  </div>
-                </div>
-                <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
-                  <div className="text-[10px] text-slate-400">3 Getir Bedavaya Getir (+%15)</div>
-                  <div className="text-sm font-bold text-white mt-0.5">
-                    {branchAndQualificationStats.fastRoiCount} / 3 Direkt Satış
-                  </div>
-                  <div className="text-[10px] text-teal-300">
-                    {branchAndQualificationStats.missingFastRoi === 0
-                      ? '✓ +%15 Fast-ROI Kazanıldı'
-                      : `Eksik: ${branchAndQualificationStats.missingFastRoi} Direkt Satış`}
                   </div>
                 </div>
               </div>
@@ -5066,6 +5070,10 @@ Paket Alarak Aktifliği Yenile →
       )}
 
       {/* SUB-TAB: 💬 ŞİKAYETLER VE ÖNERİLER (YÖNETİCİYE DOĞRUDAN İLETİM & GERİ BİLDİRİM PANELİ) */}
+      {subTab === 'documents' && !isAdminAuthenticated && (
+        <SharedDocumentsPanel access="dealer" />
+      )}
+
       {subTab === 'feedback' && (
         <div className="space-y-8">
           {/* Üst Karşılama Kartı */}
