@@ -175,7 +175,7 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
   // WhatsApp Share Message
   const waShareText = encodeURIComponent(
     `🌟 AuraBio Kuantum Biyo-Rezonans & Monoline 7 Nefis MLM İş Sunum Raporu (v6.0 Enterprise)\n\n` +
-    `Canlı optik & 3D biyo-aura spektrometresi, 10s vokal biyo-akustik analiz, Web BLE akıllı saat nabız köprüsü, 302+ kadim şifa frekansı, 50+ hastalık ansiklopedisi, MindSpace Studio, 15 resmi bayilik kredi paketi ve %20 Direkt Sponsor + %25 Monoline 7 Derinlik Tek Hat + %50 Kariyer Havuzu gelir modelini inceleyin:\n\n` +
+    `Canlı optik & 3D biyo-aura spektrometresi, 10s vokal biyo-akustik analiz, Web BLE akıllı saat nabız köprüsü, 302+ kadim şifa frekansı, 50+ hastalık ansiklopedisi, MindSpace Studio, 14 resmi bayilik kredi paketi ve %20 Direkt Sponsor + %25 Monoline 7 Derinlik Tek Hat + %5 Sistem / Kariyer Fonu gelir modelini inceleyin:\n\n` +
     `📊 Resmi Dijital Katalog & İnteraktif İş Sunumu:\n${fullShareUrl}\n\n` +
     `🎁 Yetkili Bayi Referans Kodu: ${activeReferralCode}`
   );
@@ -356,8 +356,8 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
               {
                 id: 'packages' as TabSection,
                 num: '5',
-                title: '5. 15 Resmi Bayilik Paketi',
-                short: '15 Bayilik Paketi',
+                title: '5. 14 Resmi Bayilik Paketi',
+                short: '14 Bayilik Paketi',
                 icon: Coins,
                 color: 'purple',
               },
@@ -759,7 +759,7 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
               <div className="p-5 rounded-2xl bg-gradient-to-r from-emerald-950/60 to-slate-900 border border-emerald-500/40 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
                 <div>
                   <h4 className="text-sm font-bold text-slate-100">Monoline 7 Nefis MLM &amp; Bayi Gelir Modelini Keşfedin</h4>
-                  <p className="text-xs text-slate-400">Danışan seans kârı, %20 Direkt Sponsor, %25 Monoline Tek Hat ve %50 Kariyer Havuzu gelirlerini inceleyin.</p>
+                  <p className="text-xs text-slate-400">Danışan seans kârı, %20 Direkt Sponsor, %25 Monoline Tek Hat ve %5 Sistem / Kariyer Fonu gelirlerini inceleyin.</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button
@@ -791,7 +791,7 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                   <span>Monoline (Küresel Tek Hat) &amp; 7 Nefis Mertebesi MLM Kazanç Mimarisi</span>
                 </div>
                 <h3 className="text-xl sm:text-2xl font-black text-white leading-tight">
-                  Danışan Seans Geliri + %20 Direkt Sponsor + %25 Küresel Tek Hat (7 Derinlik) + %50 Kariyer Havuzu + Liderlik &amp; Fast-ROI Bonusları
+                  Danışan Seans Geliri + %20 Direkt Sponsor + %25 Küresel Tek Hat (7 Derinlik) + %5 Sistem / Kariyer Fonu + Liderlik &amp; Fast-ROI Bonusları
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-4xl">
                   AuraBio Frekans ekosistemi; terapistlere, kliniklere ve girişimcilere hem yüksek marjlı danışan seans geliri hem de dünya genelinde katılan her yeni bayinin tek bir kronolojik sıraya (Global Single Line) eklendiği adil, şeffaf ve sürdürülebilir <strong>Monoline 7 Nefis MLM</strong> komisyon planı sunar.
@@ -861,7 +861,7 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                       <Award className="w-5 h-5" />
                     </div>
                     <span className="px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-black border border-purple-500/30">
-                      4. GELİR KAPISI (%50 FON)
+                      4. GELİR KAPISI (%5 FON)
                     </span>
                   </div>
                   <h4 className="text-sm font-black text-slate-100">4. 7 Nefis Kariyer Havuzu &amp; Cüzdan Bonusları</h4>
@@ -1049,9 +1049,9 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                     2
                   </div>
                   <div className="space-y-1">
-                    <h4 className="text-sm font-bold text-slate-100">15 Resmi Paketten Seçim Yapın &amp; Seans Kredisi Yükleyin</h4>
+                    <h4 className="text-sm font-bold text-slate-100">14 Resmi Paketten Seçim Yapın &amp; Seans Kredisi Yükleyin</h4>
                     <p className="text-xs text-slate-400 leading-relaxed">
-                      Bayi Back-Office içerisindeki <strong>15 Resmi Alışveriş Paketi</strong> sekmesinden 32 krediden 5.000 krediye kadar bütçenize uygun paketi seçin. BDDK uyumlu 3D Secure Sanal POS, Havale/EFT veya Kripto (USDT TRC-20) ile ödemenizi tamamlayın; krediniz anında havuzunuza aktarılır.
+                      Bayi Back-Office içerisindeki <strong>14 Resmi Alışveriş Paketi</strong> sekmesinden 32 krediden 5.000 krediye kadar bütçenize uygun paketi seçin. BDDK uyumlu 3D Secure Sanal POS, Havale/EFT veya Kripto (USDT TRC-20) ile ödemenizi tamamlayın; krediniz anında havuzunuza aktarılır.
                     </p>
                   </div>
                 </div>
@@ -1099,7 +1099,7 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                   <div className="space-y-1">
                     <h4 className="text-sm font-bold text-slate-100">Bayi Back-Office'ten Monoline Ağacınızı ve Cüzdanınızı Yönetin</h4>
                     <p className="text-xs text-slate-400 leading-relaxed">
-                      Bayi Back-Office ekranında küresel tek hat ağacınızı, alt ekip siparişlerinizi ve cüzdan hareketlerinizi izleyin; biriken %20 Direkt Sponsor, %25 Monoline ve %50 Kariyer Havuzu gelirlerinizi resmi TR IBAN hesabınıza nakit olarak çekin.
+                      Bayi Back-Office ekranında küresel tek hat ağacınızı, alt ekip siparişlerinizi ve cüzdan hareketlerinizi izleyin; biriken %20 Direkt Sponsor, %25 Monoline ve %5 Sistem / Kariyer Fonu gelirlerinizi resmi TR IBAN hesabınıza nakit olarak çekin.
                     </p>
                   </div>
                 </div>
@@ -1119,7 +1119,7 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                   <span>Çok Boyutlu Finansal Kazanç &amp; Amortisman (ROI) Hesaplayıcı</span>
                 </div>
                 <h3 className="text-xl sm:text-2xl font-black text-white leading-tight">
-                  Danışan Seansı + %20 Direkt Sponsor + %25 Monoline + %50 Kariyer Havuzu + Ekstra Prim Simülatörü
+                  Danışan Seansı + %20 Direkt Sponsor + %25 Monoline + %5 Sistem Fonu + Ekstra Prim Simülatörü
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
                   Uyguladığınız danışan seansları, direkt davet ettiğiniz üyeler, küresel tek hat (Monoline) siparişleri ve Nefis kariyer mertebenize göre aylık net gelirinizi ve yatırım geri dönüş (ROI) sürenizi canlı simüle edin.
@@ -1340,7 +1340,7 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                     className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs shadow-lg shadow-emerald-950 transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Briefcase className="w-4 h-4" />
-                    <span>15 Resmi Bayi Paketini İncele &amp; Başla</span>
+                    <span>14 Resmi Bayi Paketini İncele &amp; Başla</span>
                   </button>
                 </div>
 
@@ -1360,10 +1360,10 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                     <span>Resmi Bayilik Seans Kredisi Havuzu &amp; Monoline Alışveriş Paketleri</span>
                   </div>
                   <h3 className="text-xl sm:text-2xl font-black text-white leading-tight">
-                    32 Seans Kredisinden 5.000 Seans Kredisine 15 Resmi Paket
+                    32 Seans Kredisinden 5.000 Seans Kredisine 14 Resmi Paket
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-3xl">
-                    Paket satın alındığında seans kredileri anında havuzunuza yüklenir ve tutar Monoline motoru üzerinden <strong>%20 Direkt Sponsor • %25 7 Derinlik Tek Hat • %50 Kariyer Fonu</strong> olarak dağıtılır.
+                    Paket satın alındığında seans kredileri anında havuzunuza yüklenir. Baz dağıtım %20 direkt sponsor, %25 yedi derinlik ve %5 sistem fonudur; ek V2.2 bonusları ayrıca hesaplanır.
                   </p>
                 </div>
 
@@ -1378,7 +1378,7 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                         : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    Tüm 15 Paket
+                    Tüm 14 Paket
                   </button>
                   <button
                     type="button"
@@ -1708,15 +1708,15 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                       </span>
                     </div>
                     <p className="text-xs text-slate-400 leading-relaxed">
-                      Kurumlara, kliniklere veya ortaklarınıza fiziki sunum yapabilmeniz için sistemin en güncel 16 modülünü, 15 resmi kredi paketini ve Monoline 7 Nefis MLM gelir modelini içeren resmi Word (.doc) ve vektör PDF kataloğunu indirebilirsiniz.
+                      Kurumlara, kliniklere veya ortaklarınıza fiziki sunum yapabilmeniz için sistemin en güncel 16 modülünü, 14 resmi kredi paketini ve Monoline 7 Nefis MLM gelir modelini içeren resmi Word (.doc) ve vektör PDF kataloğunu indirebilirsiniz.
                     </p>
                     <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-slate-300 space-y-1.5">
                       <div className="font-bold text-emerald-300">Belge İçeriği (v6.0 Enterprise):</div>
                       <div>• AKN Global Group Ltd Şirket Heyet Onayı &amp; Teknik Mimari</div>
                       <div>• 16 Bütüncül Biyo-Rezonans &amp; Spektrometre Teknolojisi</div>
                       <div>• 302+ Kadim Şifa Frekansı &amp; 50+ Hastalık Protokolü Matrisi</div>
-                      <div>• Monoline 7 Nefis MLM (%20 Sponsor • %25 Tek Hat • %50 Kariyer Fonu)</div>
-                      <div>• 15 Resmi Alışveriş Paketi Fiyatlandırma &amp; Birim Maliyet Tabloları</div>
+                      <div>• Monoline 7 Nefis MLM (%20 Sponsor • %25 Tek Hat • %5 Sistem Fonu)</div>
+                      <div>• 14 Resmi Alışveriş Paketi Fiyatlandırma &amp; Birim Maliyet Tabloları</div>
                       <div>• BDDK / TCMB 3D Secure Sanal POS &amp; Yasal Uyum Beyanları</div>
                     </div>
                   </div>

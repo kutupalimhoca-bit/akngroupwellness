@@ -4391,28 +4391,22 @@ Paket Alarak Aktifliği Yenile →
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
-                    onClick={() => setShowNetworkAddModal(true)}
-                    className="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold cursor-pointer flex items-center gap-1.5 shadow-xs"
-                  >
-                    <UserPlus className="w-3.5 h-3.5" />
-                    <span>+ Hızlı Alt Bayi Ekle (Şifreli &amp; Kol Seçimli)</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
+                    onClick={() => {
+                      setShowNetworkAddModal(false);
                       redirectToDealerRegistrationPortal({
                         user_id: member.user_id,
                         full_name: member.full_name,
                         ref_code: member.ref_code,
                         email: member.email,
                         phone: member.phone,
-                      })
-                    }
-                    className="p-2 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 cursor-pointer"
-                    title="Kayıt Ekranına Git"
+                      });
+                    }}
+                    className="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold cursor-pointer flex items-center gap-1.5 shadow-xs"
                   >
-                    <ExternalLink className="w-3.5 h-3.5" />
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>Bayi Kaydını Portalda Aç</span>
                   </button>
+
                 </div>
               </div>
 

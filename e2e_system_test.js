@@ -1,10 +1,22 @@
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
-import { evaluateMemberOrganizationMetrics, INITIAL_CAREER_TIERS } from './src/types/monoline.ts';
+import { createServer as createNetServer } from 'node:net';
+import { evaluateMemberOrganizationMetrics, FREKANS_PACKAGES, INITIAL_CAREER_TIERS, RANK_UP_REWARDS_BY_CAREER } from './src/types/monoline.ts';
 
-const PORT = 3000;
-const BASE = `http://127.0.0.1:${PORT}`;
+let PORT;
+let BASE;
+
+async function getAvailablePort() {
+  const probe = createNetServer();
+  await new Promise((resolve, reject) => {
+    probe.once('error', reject);
+    probe.listen(0, '127.0.0.1', resolve);
+  });
+  const port = probe.address().port;
+  await new Promise((resolve, reject) => probe.close((error) => error ? reject(error) : resolve()));
+  return port;
+}
 const DAY_MS = 86400000;
 const stamp = Date.now().toString(36);
 const results = [];
@@ -58,6 +70,8 @@ async function waitForHealth(timeoutMs = 90000) {
 }
 
 async function main() {
+  PORT = await getAvailablePort();
+  BASE = `http://127.0.0.1:${PORT}`;
   const adminPassword = randomBytes(16).toString('hex');
   const env = {
     ...process.env,
@@ -65,6 +79,7 @@ async function main() {
     ADMIN_PASSWORD: adminPassword,
     ADMIN_JWT_SECRET: randomBytes(32).toString('hex'),
     MEMBER_JWT_SECRET: randomBytes(32).toString('hex'),
+    PORT: String(PORT),
   };
 
   const alreadyRunning = await fetch(`${BASE}/api/health`).then((r) => r.ok).catch(() => false);
@@ -149,6 +164,213 @@ async function main() {
       'Bölgesel cüzdan alanları kayıtta tanımlı',
       [mA, mB, mC, mD].every((m) => typeof m?.wallets?.wallet_domestic_usd === 'number' && typeof m?.wallets?.wallet_international_usd === 'number'),
       `A dom=${mA?.wallets?.wallet_domestic_usd}, intl=${mA?.wallets?.wallet_international_usd}; D dom=${mD?.wallets?.wallet_domestic_usd}, intl=${mD?.wallets?.wallet_international_usd}`
+    );
+    record(
+      '14 gerçek paket ve katalog uç değerleri',
+      FREKANS_PACKAGES.length === 14 && FREKANS_PACKAGES[0].defaultPrice === 101 && FREKANS_PACKAGES.at(-1)?.defaultPrice === 6031,
+      `${FREKANS_PACKAGES.length} paket; Mini $${FREKANS_PACKAGES[0].defaultPrice}, Enterprise Mega $${FREKANS_PACKAGES.at(-1)?.defaultPrice}`
+    );
+
+    const sevenDealerIds = Array.from({ length: 7 }, (_, i) => `test_user_${i + 1}-${stamp}`);
+    const sevenDealerProfiles = [
+      { country: 'TR', packageId: 'PKG_ALTIN_PRO' },
+      { country: 'TR', packageId: 'PKG_MINI_DENEME' },
+      { country: 'US', packageId: 'PKG_BRONZ_BASLANGIC' },
+      { country: 'TR', packageId: 'PKG_GUMUS_STANDART' },
+      { country: 'DE', packageId: 'PKG_ALTIN_DANISMAN' },
+      { country: 'TR', packageId: 'PKG_ALTIN_PRO' },
+      { country: 'TR', packageId: 'PKG_MINI_DENEME' },
+    ];
+    const sevenDealerRegistrations = [];
+    for (let i = 0; i < 6; i++) {
+      const profile = sevenDealerProfiles[i];
+      sevenDealerRegistrations.push(await api('POST', '/api/v1/members', {
+        body: {
+          user_id: sevenDealerIds[i],
+          full_name: `E2E Yedi Bayi ${i + 1}`,
+          email: `e2e-7b-t${i + 1}-${stamp}@test.local`,
+          country_code: profile.country,
+          sponsor_id: i === 0 ? '' : sevenDealerIds[i - 1],
+          initial_package_id: profile.packageId,
+          password: PASSWORD,
+        },
+      }));
+    }
+
+    let sevenDealerData = await snapshot();
+    const sevenMemberCareerCheck = await api('POST', '/api/v1/admin/career/calculate-active', {
+      token: adminToken,
+      body: { user_id: sevenDealerIds[0] },
+    });
+    sevenDealerData = await snapshot();
+    const sevenMemberRoot = find(sevenDealerData, sevenDealerIds[0]);
+    const sevenMemberSecond = find(sevenDealerData, sevenDealerIds[1]);
+    record(
+      'Yedi kişilik zincir ciroya rağmen direkt bayi şartı olmadan kariyer atlamaz',
+      sevenMemberCareerCheck.status === 200 && sevenMemberRoot?.career_level === 1 && sevenMemberSecond?.career_level === 1,
+      `T1=${sevenMemberRoot?.career_level ?? 0}, T2=${sevenMemberSecond?.career_level ?? 0}; 3. kariyer için 20, 4. kariyer için 50 aktif direkt gerekir`
+    );
+
+    const sevenDealerCareerLevels = [7, 6, 5, 4, 3, 2, 1];
+    const careerOverrideResults = [];
+    for (let i = 0; i < 6; i++) {
+      careerOverrideResults.push(await api('PUT', `/api/v1/admin/members/${sevenDealerIds[i]}`, {
+        token: adminToken,
+        body: { manual_career_override: sevenDealerCareerLevels[i] },
+      }));
+    }
+
+    const beforeSevenDealerOrder = await snapshot();
+    const sevenDealerWalletBefore = sevenDealerIds.slice(0, 6).map((userId) => {
+      const member = find(beforeSevenDealerOrder, userId);
+      return {
+        total_earnings: member?.wallets?.total_earnings || 0,
+        pending_domestic_usd: member?.wallets?.pending_domestic_usd || 0,
+      };
+    });
+    const systemWalletBeforeSevenDealerOrder = beforeSevenDealerOrder.systemWallet || {};
+    const finalDealerProfile = sevenDealerProfiles[6];
+    const seventhRegistration = await api('POST', '/api/v1/members', {
+      body: {
+        user_id: sevenDealerIds[6],
+        full_name: 'E2E Yedi Bayi 7',
+        email: `e2e-7b-t7-${stamp}@test.local`,
+        country_code: finalDealerProfile.country,
+        sponsor_id: sevenDealerIds[5],
+        initial_package_id: finalDealerProfile.packageId,
+        password: PASSWORD,
+      },
+    });
+    sevenDealerRegistrations.push(seventhRegistration);
+
+    sevenDealerData = await snapshot();
+    const sevenDealerMembers = sevenDealerIds.map((userId) => find(sevenDealerData, userId));
+    const sevenDealerPackageChecks = sevenDealerProfiles.map((profile, i) => {
+      const pkg = FREKANS_PACKAGES.find((candidate) => candidate.id === profile.packageId);
+      const registration = sevenDealerRegistrations[i];
+      const expectedPrice = pkg?.defaultPrice * (profile.country === 'TR' ? 1 : 3);
+      const expectedCredits = Math.max(pkg?.sessionCredits || 0, 64);
+      const expectedSponsor = i === 0 ? null : sevenDealerIds[i - 1];
+      return registration?.status === 201 && registration.json?.status === 'success' &&
+        near(registration.json?.transaction?.order_amount, expectedPrice) &&
+        registration.json?.transaction?.session_credits_added === expectedCredits &&
+        registration.json?.member?.session_credits === expectedCredits &&
+        sevenDealerMembers[i]?.country_code === profile.country &&
+        sevenDealerMembers[i]?.highest_package_id === profile.packageId &&
+        sevenDealerMembers[i]?.sponsor_id === expectedSponsor;
+    });
+    record(
+      'Yedi test bayisi paket, sponsor zinciri, bölge fiyatı ve seans kredileriyle kaydedildi',
+      sevenDealerPackageChecks.every(Boolean),
+      sevenDealerProfiles.map((profile, i) => {
+        const tx = sevenDealerRegistrations[i]?.json?.transaction;
+        return `T${i + 1} ${profile.country}/${profile.packageId} $${tx?.order_amount ?? 'hata'} · ${tx?.session_credits_added ?? 0} kredi`;
+      }).join(' | ')
+    );
+    record(
+      'Üst altı test bayisinin kariyer hak edişleri test override ile açıldı',
+      careerOverrideResults.length === 6 && careerOverrideResults.every((r) => r.status === 200) &&
+        sevenDealerMembers.slice(0, 6).every((m, i) => m?.active_career_level === sevenDealerCareerLevels[i]),
+      sevenDealerMembers.slice(0, 6).map((m, i) => `T${i + 1}=${m?.active_career_level ?? 0}`).join(', ')
+    );
+
+    const sevenDealerTransaction = seventhRegistration.json?.transaction;
+    const sevenDealerPayouts = sevenDealerTransaction?.monoline_upline_payouts || [];
+    const expectedSevenDealerUplines = sevenDealerIds.slice(0, 6).reverse();
+    const sixDepthsPaid = expectedSevenDealerUplines.every((userId, i) => {
+      const payout = sevenDealerPayouts.find((item) => item.depth === i + 1);
+      return payout?.status === 'PAID_TO_MEMBER' && payout.recipient_user_id === userId;
+    });
+    const depthSeven = sevenDealerPayouts.find((item) => item.depth === 7);
+    const sevenDealerMonolineAmount = sevenDealerPayouts.reduce((sum, payout) => sum + payout.calculated_amount, 0);
+    const sevenDealerBaseAllocated = (sevenDealerTransaction?.system_fund_base_amount || 0) +
+      (sevenDealerTransaction?.direct_sponsor?.amount_paid || 0) + sevenDealerMonolineAmount;
+    const expectedSevenDealerBase = (sevenDealerTransaction?.order_amount || 0) * 0.5;
+    const systemWalletAfterSevenDealerOrder = sevenDealerData.systemWallet || {};
+    const poolDelta = (systemWalletAfterSevenDealerOrder.system_pool_balance || 0) -
+      (systemWalletBeforeSevenDealerOrder.system_pool_balance || 0);
+    const unclaimedDelta = (systemWalletAfterSevenDealerOrder.unclaimed_pool_balance || 0) -
+      (systemWalletBeforeSevenDealerOrder.unclaimed_pool_balance || 0);
+    const sevenDealerCanonicalBudget = near(sevenDealerTransaction?.direct_sponsor?.rate_percent, 20) &&
+      near(sevenDealerPayouts.reduce((sum, payout) => sum + payout.rate_percent, 0), 25) &&
+      near(sevenDealerTransaction?.system_fund_base_amount, (sevenDealerTransaction?.order_amount || 0) * 0.05) &&
+      near(sevenDealerBaseAllocated, expectedSevenDealerBase) &&
+      near(poolDelta, sevenDealerTransaction?.system_fund_base_amount || 0) &&
+      near(unclaimedDelta, sevenDealerTransaction?.system_fund_unclaimed_overflow || 0) &&
+      near(sevenDealerTransaction?.system_fund_total_added, (sevenDealerTransaction?.system_fund_base_amount || 0) + (sevenDealerTransaction?.system_fund_unclaimed_overflow || 0));
+    record(
+      'Bayi 7 siparişi altı üst bayiye dağıtılır ve havuz bütçesi dengededir',
+      seventhRegistration.status === 201 && sixDepthsPaid &&
+        depthSeven?.status === 'TRANSFERRED_TO_POOL_NO_UPLINE' && sevenDealerCanonicalBudget,
+      `HTTP ${seventhRegistration.status}; derinlik 1–6=${sixDepthsPaid ? 'T6→T1' : 'hatalı'}, 7=${depthSeven?.status}; baz=$${sevenDealerBaseAllocated.toFixed(2)}/$${expectedSevenDealerBase.toFixed(2)}; sistem fonu Δ=$${poolDelta.toFixed(2)}; havuz devri Δ=$${unclaimedDelta.toFixed(2)}`
+    );
+
+    const sevenDealerPaidDepthAmount = sevenDealerPayouts
+      .filter((payout) => payout.status === 'PAID_TO_MEMBER')
+      .reduce((sum, payout) => sum + payout.calculated_amount, 0);
+    const sevenDealerExpectedEarnings = (sevenDealerTransaction?.direct_sponsor?.amount_paid || 0) +
+      sevenDealerPaidDepthAmount + (sevenDealerTransaction?.total_infinity_distributed || 0) +
+      (sevenDealerTransaction?.total_matching_distributed || 0);
+    const sevenDealerActualEarnings = sevenDealerIds.slice(0, 6).reduce((sum, userId, i) => {
+      const member = find(sevenDealerData, userId);
+      return sum + (member?.wallets?.total_earnings || 0) - sevenDealerWalletBefore[i].total_earnings;
+    }, 0);
+    const sevenDealerBasePendingUsdOk = expectedSevenDealerUplines.every((userId, i) => {
+      const member = find(sevenDealerData, userId);
+      const before = sevenDealerWalletBefore[5 - i].pending_domestic_usd;
+      const directAmount = sevenDealerTransaction?.direct_sponsor?.sponsor_user_id === userId
+        ? sevenDealerTransaction.direct_sponsor.amount_paid : 0;
+      const depthAmount = sevenDealerPayouts
+        .filter((payout) => payout.recipient_user_id === userId && payout.status === 'PAID_TO_MEMBER')
+        .reduce((sum, payout) => sum + payout.calculated_amount, 0);
+      return (member?.wallets?.pending_domestic_usd || 0) - before >= (directAmount + depthAmount) / 30 - 0.005;
+    });
+    record(
+      'Primler hak sahiplerinin cüzdan ve 14 günlük bekleyen bakiyelerine işlendi',
+      near(sevenDealerActualEarnings, sevenDealerExpectedEarnings) && sevenDealerBasePendingUsdOk &&
+        sevenDealerTransaction?.clawback_status === 'PENDING_14D',
+      `hak ediş toplamı=$${sevenDealerActualEarnings.toFixed(2)}; kayıtlı prim=$${sevenDealerExpectedEarnings.toFixed(2)}; yurtiçi bekleyen USD dönüşümü=${sevenDealerBasePendingUsdOk}; durum=${sevenDealerTransaction?.clawback_status}`
+    );
+
+    const sevenDealerRootRewards = (sevenDealerData.userRewardsLog || []).filter(
+      (reward) => reward.external_user_id === sevenDealerIds[0] && reward.reward_type === 'RANK_UP_GIFT'
+    );
+    const rootRewardLevels = sevenDealerRootRewards.map((reward) => reward.career_level).sort((a, b) => a - b);
+    const sevenDealerRootDashboard = await api('GET', `/api/v1/user/dashboard?user_id=${encodeURIComponent(sevenDealerIds[0])}`);
+    const sevenDealerSecondDashboard = await api('GET', `/api/v1/user/dashboard?user_id=${encodeURIComponent(sevenDealerIds[1])}`);
+    const sevenDealerRootTeam = await api('GET', `/api/v1/user/team?user_id=${encodeURIComponent(sevenDealerIds[0])}`);
+    const sevenDealerMonoline = await api('GET', `/api/v1/user/monoline-line?user_id=${encodeURIComponent(sevenDealerIds[0])}`);
+    const expectedRootRewardLevels = Object.keys(RANK_UP_REWARDS_BY_CAREER).map(Number).sort((a, b) => a - b);
+    const rootTreeDepths = sevenDealerRootTeam.json?.data?.unilevel_7_depths || [];
+    const rootLineMembers = sevenDealerMonoline.json?.data?.users_behind_next_10 || [];
+    record(
+      'T1 ve T2 kariyer ödülleri ve panel ağaç verisi senkron',
+      JSON.stringify(rootRewardLevels) === JSON.stringify(expectedRootRewardLevels) &&
+        sevenDealerRootDashboard.json?.data?.career_level === 7 &&
+        sevenDealerSecondDashboard.json?.data?.career_level === 6 &&
+        rootTreeDepths.slice(0, 6).every((depth, i) => depth.count === 1 &&
+          depth.members[0]?.external_app_user_id === sevenDealerIds[i + 1] &&
+          depth.members[0]?.career_level === sevenDealerCareerLevels[i + 1]) &&
+        rootLineMembers.slice(0, 6).every((member, i) => member.external_app_user_id === sevenDealerIds[i + 1]),
+      `T1=${sevenDealerRootDashboard.json?.data?.career_level ?? 0}. kariyer, T2=${sevenDealerSecondDashboard.json?.data?.career_level ?? 0}. kariyer; ödüller=${rootRewardLevels.join(',')}; sponsor ağacı=${rootTreeDepths.slice(0, 6).map((depth) => depth.count).join('→')}`
+    );
+
+    const intlFirstOrderId = `E2E-INTL-FIRST-${stamp}`;
+    const intlFirstOrder = await api('POST', '/api/v1/members', {
+      body: {
+        user_id: intlFirstOrderId,
+        full_name: 'E2E Uluslararası İlk Bayi',
+        email: `e2e-intl-first-${stamp}@test.local`,
+        country_code: 'US',
+        initial_package_id: 'PKG_BRONZ_BASLANGIC',
+        password: PASSWORD,
+      },
+    });
+    record(
+      'Yurt dışı ilk kayıt 3x fiyat ve sabit paket kredisi',
+      intlFirstOrder.status === 201 && intlFirstOrder.json?.transaction?.order_amount === 603 &&
+        intlFirstOrder.json?.transaction?.session_credits_added === 70 && intlFirstOrder.json?.member?.session_credits === 70,
+      `HTTP ${intlFirstOrder.status}; ilk sipariş=$${intlFirstOrder.json?.transaction?.order_amount}, sipariş kredisi=${intlFirstOrder.json?.transaction?.session_credits_added}, bayi bakiyesi=${intlFirstOrder.json?.member?.session_credits}`
     );
 
     // ---------- Adım 2: Bakiye yükleme (test verisi, export/restore ile) ----------
@@ -266,6 +488,15 @@ async function main() {
       lockDepths.every((v, i) => v === i + 1),
       lockDepths.map((v, i) => `U${7 - i}=${v}`).join(', ')
     );
+    const maxRankRewards = (data.userRewardsLog || []).filter((reward) => reward.external_user_id === ids.U1 && reward.reward_type === 'RANK_UP_GIFT');
+    const expectedRewardLevels = Object.keys(RANK_UP_REWARDS_BY_CAREER).map(Number).sort((a, b) => a - b);
+    const actualRewardLevels = maxRankRewards.map((reward) => reward.career_level).sort((a, b) => a - b);
+    record(
+      '7. kariyere geçişte 2–7 kariyer ödülleri tek kez oluştu',
+      JSON.stringify(actualRewardLevels) === JSON.stringify(expectedRewardLevels) &&
+        maxRankRewards.reduce((sum, reward) => sum + reward.cash_value, 0) === 215500,
+      `seviyeler=${actualRewardLevels.join(',')}; ödül toplamı=$${maxRankRewards.reduce((sum, reward) => sum + reward.cash_value, 0)}`
+    );
     const tokU8 = await login('U8');
     const earnBefore = uplineIds.map((uid) => find(data, uid).wallets.total_earnings);
     const r7 = await api('POST', `/api/v1/members/${ids.U8}/activity-action`, { token: tokU8, body: { action: 'RENEW_PACKAGE' } });
@@ -276,14 +507,20 @@ async function main() {
       return p?.status === 'PAID_TO_MEMBER' && p.recipient_user_id === ids[`U${8 - d}`] && p.calculated_amount > 0;
     });
     const earnedAll = uplineIds.every((uid, i) => find(data, uid).wallets.total_earnings > earnBefore[i]);
+    const transaction = r7.json?.transaction;
+    const monolineAmount = payouts.reduce((sum, payout) => sum + payout.calculated_amount, 0);
+    const baseAllocatedAmount = transaction?.system_fund_base_amount +
+      transaction?.direct_sponsor?.amount_paid + monolineAmount;
+    const expectedBaseAllocation = transaction?.order_amount * 0.5;
     const canonicalRates = near(payouts.reduce((sum, payout) => sum + payout.rate_percent, 0), 25) &&
-      r7.json?.transaction?.direct_sponsor?.rate_percent === 20 &&
-      near(r7.json?.transaction?.system_fund_base_amount, 5) &&
-      r7.json?.transaction?.clawback_status === 'PENDING_14D';
+      transaction?.direct_sponsor?.rate_percent === 20 &&
+      near(transaction?.system_fund_base_amount, transaction?.order_amount * 0.05) &&
+      near(baseAllocatedAmount, expectedBaseAllocation) &&
+      transaction?.clawback_status === 'PENDING_14D';
     record(
-      'Komisyon oranları %20/%25/%5 ve 14 günlük bekleme',
+      'Baz dağıtım bütçesi %5 fon + %20 sponsor + %25 monoline = %50',
       r7.status === 200 && depthPaid && earnedAll && canonicalRates,
-      `HTTP ${r7.status}; derinlik toplamı=%${payouts.reduce((sum, payout) => sum + payout.rate_percent, 0)}, sponsor=%${r7.json?.transaction?.direct_sponsor?.rate_percent}, fon=$${r7.json?.transaction?.system_fund_base_amount}, durum=${r7.json?.transaction?.clawback_status}`
+      `HTTP ${r7.status}; baz dağıtım=$${baseAllocatedAmount.toFixed(2)}/$${expectedBaseAllocation.toFixed(2)}, derinlik=%${payouts.reduce((sum, payout) => sum + payout.rate_percent, 0)}, sponsor=%${transaction?.direct_sponsor?.rate_percent}, fon=$${transaction?.system_fund_base_amount}; ek sonsuzluk=$${transaction?.total_infinity_distributed || 0}, eşleşme=$${transaction?.total_matching_distributed || 0}; durum=${transaction?.clawback_status}`
     );
     const earlyRelease = await api('POST', '/api/v1/admin/cron/release-clawback', {
       token: adminToken,
@@ -402,6 +639,7 @@ async function main() {
 
     const liveCases = [
       { key: 'LV2OK', name: 'Seviye 2: 10 aktif direkt, PGV 2000, kişisel 1000', directCount: 10, directVol: 200, leaderVol: 1000, expectLevel: 2 },
+      { key: 'LV3OK', name: 'Seviye 3: 20 aktif direkt, PGV 6000, kişisel 3000', directCount: 20, directVol: 300, leaderVol: 3000, expectLevel: 3 },
       { key: 'LV2NO9', name: 'Seviye 2 reddi: 9 aktif direkt, PGV 2250', directCount: 9, directVol: 250, leaderVol: 1000, expectLevel: 1 },
       { key: 'LV2NOVOL', name: 'Seviye 2 reddi: kişisel hacim 500', directCount: 10, directVol: 200, leaderVol: 500, expectLevel: 1 },
       {
@@ -516,7 +754,7 @@ async function main() {
       `HTTP ${trReject.status}, dom bakiye=${domRefunded} (beklenen ${domBeforeTr - 20}), stopaj=${trReject.json?.withdrawal?.tax_deduction}`
     );
 
-    const rejectedInvoice = (await snapshot()).tax_refund_invoices?.find((invoice) => invoice.id === trInvoice.json?.invoice?.id);
+    const rejectedInvoice = (await snapshot()).taxRefundInvoices?.find((invoice) => invoice.id === trInvoice.json?.invoice?.id);
     const approveRejectedInvoice = await api('POST', `/api/v1/admin/tax-refunds/${trInvoice.json?.invoice?.id}/decision`, {
       token: adminToken,
       body: { decision: 'APPROVED' },
@@ -630,7 +868,7 @@ async function main() {
       token: adminToken,
       body: {},
     });
-    const sepaInvoiceState = (await snapshot()).tax_refund_invoices?.find((invoice) => invoice.id === sepaInvoice.json?.invoice?.id);
+    const sepaInvoiceState = (await snapshot()).taxRefundInvoices?.find((invoice) => invoice.id === sepaInvoice.json?.invoice?.id);
     record(
       'Eksik vergi kararı faturayı otomatik onaylamaz',
       sepaInvoice.status === 201 && emptyTaxDecision.status === 400 &&

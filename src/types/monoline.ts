@@ -1313,7 +1313,7 @@ export type CommissionLogStatusType =
 // SQL Table 3: system_wallet (3. SİSTEM ŞİRKET VE DEVİR HAVUZU)
 export interface SystemWalletRecord {
   id: number; // INT PRIMARY KEY DEFAULT 1
-  system_pool_balance: number; // NUMERIC(15,2) DEFAULT 0.00 -- %50 Fon
+  system_pool_balance: number; // NUMERIC(15,2) DEFAULT 0.00 -- %5 Fon
   unclaimed_pool_balance: number; // NUMERIC(15,2) DEFAULT 0.00 -- Yetkisizlik/Pasiflikten Devredenler
   updated_at: string; // TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 }

@@ -336,7 +336,7 @@ export const CommissionEngineView: React.FC<CommissionEngineViewProps> = ({
     ? members.find((m) => m.user_id === selectedBuyer.sponsor_id)
     : undefined;
 
-  const previewFundBase = Number(((orderAmount * 50) / 100).toFixed(2));
+  const previewFundBase = Number(((orderAmount * 5) / 100).toFixed(2));
   const previewSponsor = Number(((orderAmount * 20) / 100).toFixed(2));
   const previewUplineTotal = Number(((orderAmount * 30) / 100).toFixed(2));
 
@@ -686,7 +686,7 @@ export const CommissionEngineView: React.FC<CommissionEngineViewProps> = ({
           )}
         </section>
 
-        {/* Right 7 Columns: Real-Time Distribution Breakdown (%50 / %20 / %25) */}
+        {/* Right 7 Columns: Real-Time Distribution Breakdown (%5 / %20 / %25) */}
         <section className="lg:col-span-7 bg-white border border-slate-200 rounded-xl p-6 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-4">
             <div>
@@ -723,7 +723,7 @@ export const CommissionEngineView: React.FC<CommissionEngineViewProps> = ({
             <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-1.5">
               <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
                 <span>1. Sistem / Kariyer Fonu</span>
-                <span className="font-mono text-slate-900 font-bold">%50 + Devirler</span>
+                <span className="font-mono text-slate-900 font-bold">%5 + Devirler</span>
               </div>
               <div className="text-2xl font-bold font-mono tabular-nums text-slate-900">
                 {previewFundBase.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} $
@@ -1451,7 +1451,7 @@ export const CommissionEngineView: React.FC<CommissionEngineViewProps> = ({
                   Dinamik Havuz Dağıtımı (Dynamic Pool Split Engine) — Puan Bazlı Sistem Fonu Paylaşımı
                 </div>
                 <div className="text-xs text-slate-500">
-                  Sistem Fonunda (%50 + Devirler) biriken{' '}
+                  Sistem Fonunda (%5 + Devirler) biriken{' '}
                   <strong>{systemFundBalance.toLocaleString('tr-TR')} $</strong>, sabit taahhüt
                   yerine aktif liderlerin dönemsel kariyer ağırlığı ve 30 günlük PGV katkısıyla
                   üretilen <strong>Liderlik Puanı (pool_leadership_points)</strong> oranında
@@ -1659,10 +1659,10 @@ async function handleOrderWebhook(req, res) {
 
                 <div className="p-3 rounded-xl border border-slate-200 bg-white space-y-0.5">
                   <div className="font-mono font-bold text-indigo-700">
-                    4 &amp; 5. Havuz 1 (%50 Fon) &amp; Havuz 2 (%20 Sponsor)
+                    4 &amp; 5. Havuz 1 (%5 Sistem Fonu) &amp; Havuz 2 (%20 Sponsor)
                   </div>
                   <div className="text-slate-600">
-                    %50 <code className="font-mono">system_pool_balance</code> (
+                    %5 <code className="font-mono">system_pool_balance</code> (
                     <code className="font-mono">RELEASED</code>); %20 Sponsor{' '}
                     <code className="font-mono">pending_*_usd</code> (
                     <code className="font-mono">PENDING_14D</code>) veya{' '}
@@ -1675,7 +1675,7 @@ async function handleOrderWebhook(req, res) {
                     6. Havuz 3: %25 Monoline 7 Derinlik (active_career_level)
                   </div>
                   <div className="text-slate-600">
-                    <code className="font-mono">[0.08, 0.06, 0.05, 0.04, 0.03, 0.02, 0.02]</code>{' '}
+                    <code className="font-mono">[0.07, 0.05, 0.04, 0.03, 0.02, 0.02, 0.02]</code>{' '}
                     oranlarıyla <code className="font-mono">is_active</code> ve{' '}
                     <code className="font-mono">active_career_level &gt;= depth</code> kontrolü
                     yapılır.
@@ -1729,8 +1729,8 @@ const worker = new Worker('commission-processing', async (job) => {
     const releaseDate = new Date();
     releaseDate.setDate(releaseDate.getDate() + 14); // +14 Gün Cayma Süresi
 
-    // 4. HAVUZ 1: %50 Sistem / Kariyer Fonu Aktarımı
-    const systemFund = order_amount * 0.50;
+    // 4. HAVUZ 1: %5 Sistem / Kariyer Fonu Aktarımı
+    const systemFund = order_amount * 0.05;
     await client.query('UPDATE system_wallet SET system_pool_balance = system_pool_balance + $1 WHERE id = 1', [systemFund]);
     await logComm(client, order_id, buyer.id, null, 'SYSTEM_POOL', null, systemFund, 'RELEASED', new Date());
 

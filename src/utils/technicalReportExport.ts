@@ -144,7 +144,7 @@ export function downloadTechnicalReportWord(): void {
       <li><strong>1. Danışan Seans Geliri (Perakende Kar):</strong> Bayiler seans kredi havuzundan $1.21 – $3.16 birim maliyetle kullandıkları seansları danışanlarına $30 – $70 aralığında uygulayarak yüksek perakende kar elde eder.</li>
       <li><strong>2. %20 Direkt Sponsor Referans Primi:</strong> Bayinin kendi referans koduyla davet ettiği üyelerin satın aldığı tüm paketlerden anında <strong>%20 Direkt Sponsor Primi</strong> Sponsor Cüzdanına yansır.</li>
       <li><strong>3. %25 Küresel Tek Hat (Monoline 7 Derinlik) Primi:</strong> Kimin davet ettiğine bakılmaksızın her siparişin <strong>%25'i</strong>, siparişi veren üyenin küresel tek hattaki üst 7 sırasına <strong>1. Sıra %7, 2. Sıra %5, 3. Sıra %4, 4. Sıra %3, 5. Sıra %2, 6. Sıra %2, 7. Sıra %2</strong> oranlarında otomatik dağıtılır.</li>
-      <li><strong>4. %50 Sistem / Kariyer Havuzu Fonu &amp; Anlık Kariyer Bonusları:</strong> Her siparişin %50'si Kariyer Havuzuna aktarılır. 7 Nefis Mertebesine ulaşan bayiler havuzdan ek pay (%2 - %15) ve yönetici tarafından cüzdanlarına anında aktarılan Kariyer Bonusları kazanır.</li>
+      <li><strong>4. %5 Sistem / Kariyer Havuzu Fonu &amp; Anlık Kariyer Bonusları:</strong> Her siparişin %5'i Sistem / Kariyer Havuzuna aktarılır. 7 Nefis Mertebesine ulaşan bayiler havuzdan ek pay (%2 - %15) ve yönetici tarafından cüzdanlarına anında aktarılan Kariyer Bonusları kazanır.</li>
       <li><strong>5. Liderlik Eşleşme Bonusu (Matching %20):</strong> Alt ekibinizdeki liderlerin kazançları üzerinden 1. Nesil %10, 2. Nesil %5 ve 3. Nesil %5 oranında doğrudan cüzdanınıza yatan liderlik primi.</li>
       <li><strong>6. Unilevel Sonsuzluk Primi (Infinity %1 - %7):</strong> Kariyer basamağınıza göre 8. derinlikten sonsuz derinliğe kadar tüm organizasyon cironuzdan aldığınız diferansiyel fark primi.</li>
       <li><strong>7. &ldquo;3 Getir Bedavaya Getir&rdquo; Fast-ROI İkramiyesi (+%15):</strong> İlk 3 direkt satışınızda %60 sponsor primine ek olarak anında +%15 Fast-ROI ikramiyesi ödenir; toplam %75 nakit iade ile paket maliyetiniz sıfırlanır.</li>
@@ -163,8 +163,8 @@ export function downloadTechnicalReportWord(): void {
       • <strong>%20 Kurumsal Fatura / Stopaj İadesi:</strong> Fatura kesen şirket sahibi bayiler %20 vergi kesintisini geri alabilir.
     </div>
 
-    <h2>4. 15 RESMİ BAYİLİK &amp; SEANS KREDİSİ HAVUZU ALIŞVERİŞ PAKETİ</h2>
-    <p>Bayi Back-Office üzerinden satın alınabilen ve anında seans kredisi + Monoline komisyon dağıtımı tetikleyen 15 resmi paket:</p>
+    <h2>4. 14 RESMİ BAYİLİK &amp; SEANS KREDİSİ HAVUZU ALIŞVERİŞ PAKETİ</h2>
+    <p>Bayi Back-Office üzerinden satın alınabilen ve anında seans kredisi + Monoline komisyon dağıtımı tetikleyen 14 resmi paket:</p>
     <table>
       <thead>
         <tr>
@@ -417,7 +417,7 @@ export function downloadTechnicalReportPDF(): void {
     '1. Danisan Seans Kari: 15 kredi paketinde $1.21-$3.16 birim maliyet ile $30-$70 seans uygulamasi.',
     '2. %20 Direkt Sponsor Primi: Referans kodunuzla kaydolan uyelerin her paket alimindan aninda %20 nakit komisyon.',
     '3. %25 Monoline Kuresel Tek Hat Primi: Ust 7 siraya %7, %5, %4, %3, %2, %2, %2 oraninda otomatik dagitim.',
-    '4. %50 Kariyer Fonu & Bonuslar: Nefs-i Emmare -> Nefs-i Kamile 7 mertebe havuz payi (%2-%15) ve anlik cuzdana bonus.',
+    '4. %5 Sistem/Kariyer Fonu & Bonuslar: Nefs-i Emmare -> Nefs-i Kamile 7 mertebe havuz payi (%2-%15) ve anlik cuzdana bonus.',
     '5. Liderlik Eslesme Bonusu (Matching %20): 1. Nesil %10, 2. Nesil %5, 3. Nesil %5 derinlik kazanci.',
     '6. Unilevel Sonsuzluk Primi (Infinity %1-%7): 8. derinlikten sonsuza kadar diferansiyel ciro fark primi.',
     '7. 3 Getir Bedavaya Getir (+%15 Fast-ROI): Ilk 3 direkt satista toplam %75 nakit iade ile paket maliyeti sifirlama.',
@@ -472,7 +472,7 @@ export function downloadTechnicalReportPDF(): void {
   doc.setTextColor(15, 23, 42);
   doc.setFontSize(10.5);
   doc.setFont('helvetica', 'bold');
-  doc.text(clean('4. 15 RESMI BAYILIK VE SEANS KREDISI HAVUZU ALISVERIS PAKETI'), margin, y);
+  doc.text(clean('4. 14 RESMI BAYILIK VE SEANS KREDISI HAVUZU ALISVERIS PAKETI'), margin, y);
   y += 5;
 
   FREKANS_PACKAGES.forEach((pkg) => {

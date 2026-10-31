@@ -207,7 +207,7 @@ CREATE TABLE wallets (
 -- 3. SİSTEM ŞİRKET VE DEVİR HAVUZU
 CREATE TABLE system_wallet (
     id INT PRIMARY KEY DEFAULT 1,
-    system_pool_balance NUMERIC(15,2) DEFAULT 0.00,       -- %50 Fon
+    system_pool_balance NUMERIC(15,2) DEFAULT 0.00,       -- %5 Fon
     unclaimed_pool_balance NUMERIC(15,2) DEFAULT 0.00,     -- Yetkisizlik/Pasiflikten Devredenler
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -3391,7 +3391,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                 {systemFundBalance.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} $
               </div>
               <div className="text-xs text-slate-500">
-                Siparişlerden biriken %50 sistem fonu (Yönetici bonusları buradan veya doğrudan tanımlanır)
+                Siparişlerden biriken %5 sistem fonu (Yönetici bonusları buradan veya doğrudan tanımlanır)
               </div>
             </div>
 
@@ -4858,7 +4858,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-500">
                     <th className="py-2 pr-2">id (INT PK DEFAULT 1)</th>
-                    <th className="py-2 px-2 text-right">system_pool_balance NUMERIC(15,2) (%50 Fon)</th>
+                    <th className="py-2 px-2 text-right">system_pool_balance NUMERIC(15,2) (%5 Fon)</th>
                     <th className="py-2 px-2 text-right">
                       unclaimed_pool_balance NUMERIC(15,2) (Yetkisizlik/Pasiflikten Devredenler)
                     </th>
@@ -5433,7 +5433,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                   <div className="text-xl font-bold text-purple-300 mt-1">
                     {systemFundBalance.toLocaleString('tr-TR')} $
                   </div>
-                  <div className="text-[10px] text-slate-300 mt-0.5">%50 Kariyer Fonu</div>
+                  <div className="text-[10px] text-slate-300 mt-0.5">%5 Sistem / Kariyer Fonu</div>
                 </div>
 
                 <div className="bg-white/10 backdrop-blur-xs border border-white/10 rounded-xl p-3">

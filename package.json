@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build",
-    "test": "tsx --test server/paymentProviders.test.ts src/utils/withdrawalPayout.test.ts",
+    "test": "tsx --test server/paymentProviders.test.ts src/utils/withdrawalPayout.test.ts src/utils/financialModel.test.ts",
     "test:e2e": "tsx e2e_system_test.js",
     "test:devices": "playwright test",
     "start": "node server.ts",
