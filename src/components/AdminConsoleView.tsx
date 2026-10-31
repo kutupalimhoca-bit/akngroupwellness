@@ -1174,17 +1174,17 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
   );
 
   return (
-    <div className="space-y-8">
+    <div className="grid min-w-0 max-w-full grid-cols-1 items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
       {/* MODÜL 6 Header & Sub-navigation */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col xl:flex-row xl:items-center justify-between gap-6 shadow-2xs">
+      <div className="self-start rounded-2xl border border-indigo-900/70 bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 p-5 shadow-xl lg:sticky lg:top-4">
         <div>
-          <div className="text-xs font-mono text-emerald-700 font-bold">
+          <div className="text-xs font-mono text-emerald-300 font-bold">
             TAM SAYFA YÖNETİCİ KONSOLU · MONOLINE 7 NEFİS MLM · BAYİ, HAT SIRALAMA & BONUS YÖNETİMİ
           </div>
-          <h2 className="text-xl font-bold text-slate-900 mt-0.5">
+          <h2 className="text-xl font-bold text-white mt-0.5">
             Bayi Ekleme/Silme, Monoline Sıra & Sponsor Değiştirme, Kariyer Bonus Yönetimi & SQL
           </h2>
-          <div className="flex flex-wrap items-center gap-2 mt-3">
+          <div className="mt-4 flex flex-col items-stretch gap-2">
             <button
               type="button"
               onClick={() => setAdminSection('data_management')}
@@ -1221,14 +1221,14 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-100 rounded-xl">
+        <nav aria-label="Monoline yönetim bölümleri" className="mt-5 flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-2 [&>button]:w-full [&>button]:justify-start [&>button]:text-left">
           <button
             type="button"
             onClick={() => setAdminSection('members')}
             className={`px-3 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
               adminSection === 'members'
                 ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-700 hover:text-slate-900 hover:bg-white/60'
+                : 'text-slate-200 hover:text-white hover:bg-white/10'
             }`}
           >
             1. Bayi Ekle/Sil, Hat Sıralama & Sponsor ({sortedMembers.length})
@@ -1287,7 +1287,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
             className={`px-3 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
               adminSection === 'finance'
                 ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-700 hover:text-slate-900 hover:bg-white/60'
+                : 'text-slate-200 hover:text-white hover:bg-white/10'
             }`}
           >
             6. Finans & Çekim ({pendingWithdrawals.length} Bekleyen)
@@ -1309,7 +1309,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
             className={`px-3 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
               adminSection === 'webhooks_sql'
                 ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-700 hover:text-slate-900 hover:bg-white/60'
+                : 'text-slate-200 hover:text-white hover:bg-white/10'
             }`}
           >
             7. Webhook & 6 SQL Tablo
@@ -1357,7 +1357,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
             className={`px-3 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
               adminSection === 'rest_api'
                 ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-700 hover:text-slate-900 hover:bg-white/60'
+                : 'text-slate-200 hover:text-white hover:bg-white/10'
             }`}
           >
             9. REST API &amp; JWT Test
@@ -1374,9 +1374,9 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
             <Database className="w-3.5 h-3.5" />
             <span>💾 10. Veri / Data Portalı (Yedek İndir &amp; Yükle)</span>
           </button>
-        </div>
+        </nav>
       </div>
-
+      <div className="min-w-0 max-w-full space-y-6 overflow-x-auto">
       {/* SECTION: 🚀 BÜYÜMEYİ 2-3 KATINA ÇIKARAN 5 STRATEJİK İYİLEŞTİRME ÖNERİSİ & V2.2 SİSTEM AYARLARI */}
       {adminSection === 'strategic_growth' && (
         <section className="space-y-6">
@@ -6264,6 +6264,8 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
           })()}
         </section>
       )}
+
+      </div>
 
       {/* SİSTEMİ SIFIRLA ONAY MODALI */}
       {showResetWarningModal && (

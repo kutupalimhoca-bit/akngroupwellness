@@ -71,7 +71,20 @@ import { DealerRegionalUsdPanel } from './DealerRegionalUsdPanel';
 import { DealerEthicsGuidelines } from './DealerEthicsGuidelines';
 import { SharedDocumentsPanel } from './SharedDocumentsPanel';
 
+export type DealerBackOfficeSubTab =
+  | 'wallet'
+  | 'profile'
+  | 'activity'
+  | 'referral'
+  | 'network'
+  | 'security'
+  | 'plaque'
+  | 'feedback'
+  | 'documents';
+
 interface DealerBackOfficeViewProps {
+  subTab: DealerBackOfficeSubTab;
+  onSubTabChange: (tab: DealerBackOfficeSubTab) => void;
   members: MonolineMember[];
   selectedMemberId: string;
   onSelectMember: (userId: string) => void;
@@ -111,7 +124,6 @@ interface DealerBackOfficeViewProps {
     userId: string,
     data: {
       full_name: string;
-      email: string;
       phone: string;
       city: string;
       iban_holder_name: string;
@@ -121,6 +133,10 @@ interface DealerBackOfficeViewProps {
       preferred_method: 'IBAN' | 'TRC20';
     }
   ) => Promise<void>;
+  onUpdateCredentials: (
+    userId: string,
+    data: { current_password: string; email: string; new_password?: string }
+  ) => Promise<boolean>;
   onToggle2FA: (userId: string, enabled: boolean, code: string) => Promise<void>;
   onRenewActivityPackage?: (
     userId: string,
@@ -197,6 +213,8 @@ function generateQrMatrix(text: string): boolean[][] {
 }
 
 export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
+  subTab,
+  onSubTabChange: setSubTab,
   members,
   selectedMemberId,
   onSelectMember,
@@ -214,6 +232,7 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
   onCreateWithdrawal,
   onReleasePendingBalance,
   onUpdateProfile,
+  onUpdateCredentials,
   onToggle2FA,
   onRenewActivityPackage,
   onRegisterReferralMember,
@@ -221,9 +240,7 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
   isAdminAuthenticated = false,
   feedbackTickets = [],
 }) => {
-  const [subTab, setSubTab] = useState<
-    'wallet' | 'activity' | 'referral' | 'network' | 'security' | 'plaque' | 'feedback' | 'documents'
-  >('wallet');
+
   const [activeRegionPanel, setActiveRegionPanel] = useState<MemberRegion | null>(null);
 
   // 💬 Bayi Şikayetler & Öneriler Yönetimi State'leri
@@ -1465,6 +1482,10 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
   // Profile & 2FA state
   const [editName, setEditName] = useState<string>(member?.full_name || '');
   const [editEmail, setEditEmail] = useState<string>(member?.email || '');
+  const [currentLoginPassword, setCurrentLoginPassword] = useState<string>('');
+  const [newLoginPassword, setNewLoginPassword] = useState<string>('');
+  const [confirmLoginPassword, setConfirmLoginPassword] = useState<string>('');
+  const [loginCredentialsError, setLoginCredentialsError] = useState<string | null>(null);
   const [editPhone, setEditPhone] = useState<string>(member?.phone || '');
   const [editCity, setEditCity] = useState<string>(member?.city || '');
   const [editIbanHolder, setEditIbanHolder] = useState<string>(
@@ -1483,6 +1504,10 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
     if (member) {
       setEditName(member.full_name || '');
       setEditEmail(member.email || '');
+      setCurrentLoginPassword('');
+      setNewLoginPassword('');
+      setConfirmLoginPassword('');
+      setLoginCredentialsError(null);
       setEditPhone(member.phone || '');
       setEditCity(member.city || '');
       setEditIbanHolder(member.bank_details?.iban_holder_name || member.full_name || '');
@@ -1662,9 +1687,38 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoginCredentialsError(null);
+    const email = editEmail.trim().toLowerCase();
+    const newPassword = newLoginPassword.trim();
+    const credentialsChanged =
+      email !== (member.email || '').trim().toLowerCase() || newPassword.length > 0;
+
+    if (credentialsChanged) {
+      if (!currentLoginPassword.trim()) {
+        setLoginCredentialsError('Giriş bilgilerini değiştirmek için mevcut parolanızı girin.');
+        return;
+      }
+      if (newPassword && newPassword.length < 8) {
+        setLoginCredentialsError('Yeni parola en az 8 karakter olmalıdır.');
+        return;
+      }
+      if (newPassword !== confirmLoginPassword.trim()) {
+        setLoginCredentialsError('Yeni parola ve parola tekrarı eşleşmiyor.');
+        return;
+      }
+      const updated = await onUpdateCredentials(member.user_id, {
+        current_password: currentLoginPassword.trim(),
+        email,
+        new_password: newPassword || undefined,
+      });
+      if (!updated) return;
+      setCurrentLoginPassword('');
+      setNewLoginPassword('');
+      setConfirmLoginPassword('');
+    }
+
     await onUpdateProfile(member.user_id, {
       full_name: editName,
-      email: editEmail,
       phone: editPhone,
       city: editCity,
       iban_holder_name: editIbanHolder,
@@ -2230,7 +2284,7 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
         </div>
 
         {/* Interactive Sub-Tabs for Module 5 */}
-        <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 rounded-lg w-fit">
+        <div className="hidden">
           <button
             type="button"
             onClick={() => setSubTab('wallet')}
@@ -4596,13 +4650,13 @@ Paket Alarak Aktifliği Yenile →
         </section>
       )}
 
-      {/* SUB-TAB 4: HESAP, BANKA/KRİPTO CÜZDAN & 2FA GÜVENLİK */}
-      {subTab === 'security' && (
+      {(subTab === 'profile' || subTab === 'security') && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          <section className="lg:col-span-7 bg-white border border-slate-200 rounded-xl p-6 space-y-5">
+          {subTab === 'profile' && (
+            <section className="lg:col-span-12 bg-white border border-slate-200 rounded-xl p-6 space-y-5">
             <div className="border-b border-slate-200 pb-4">
               <h3 className="text-lg font-bold text-slate-900">
-                Profil Bilgileri &amp; Resmi Banka (TR IBAN) Hesap Yönetimi
+                Bayi Profil Güncelleme &amp; Resmi Banka (TR IBAN)
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
                 Nakit çekim taleplerinde kullanılacak varsayılan resmi TR IBAN banka
@@ -4626,11 +4680,12 @@ Paket Alarak Aktifliği Yenile →
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1">
-                    E-Posta Adresi
+                    Giriş E-Posta Adresi
                   </label>
                   <input
                     type="email"
                     required
+                    autoComplete="username"
                     value={editEmail}
                     onChange={(e) => setEditEmail(e.target.value)}
                     className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg"
@@ -4656,6 +4711,60 @@ Paket Alarak Aktifliği Yenile →
                     className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">
+                    Mevcut Giriş Parolası
+                  </label>
+                  <input
+                    type="password"
+                    autoComplete="current-password"
+                    required={
+                      editEmail.trim().toLowerCase() !== (member.email || '').trim().toLowerCase() ||
+                      newLoginPassword.length > 0
+                    }
+                    value={currentLoginPassword}
+                    onChange={(e) => setCurrentLoginPassword(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">
+                    Yeni Giriş Parolası
+                  </label>
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    minLength={8}
+                    value={newLoginPassword}
+                    onChange={(e) => setNewLoginPassword(e.target.value)}
+                    placeholder="Değiştirmek istemiyorsanız boş bırakın"
+                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">
+                    Yeni Parolayı Tekrarla
+                  </label>
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    required={newLoginPassword.length > 0}
+                    value={confirmLoginPassword}
+                    onChange={(e) => setConfirmLoginPassword(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg"
+                  />
+                </div>
+                <p className="sm:col-span-3 text-[11px] text-slate-500">
+                  E-posta veya parola değişikliğinde mevcut parolanız doğrulanır. Yeni parola en az 8 karakter olmalıdır.
+                </p>
+                {loginCredentialsError && (
+                  <p role="alert" className="sm:col-span-3 text-xs font-medium text-red-700">
+                    {loginCredentialsError}
+                  </p>
+                )}
               </div>
 
               <div className="pt-3 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -4707,10 +4816,11 @@ Paket Alarak Aktifliği Yenile →
                 </button>
               </div>
             </form>
-          </section>
+            </section>
+          )}
 
-          {/* Right 5 cols: 2FA (Two-Factor Authentication) Setup & Management */}
-          <section className="lg:col-span-5 bg-white border border-slate-200 rounded-xl p-6 space-y-5">
+          {subTab === 'security' && (
+          <section className="lg:col-span-12 bg-white border border-slate-200 rounded-xl p-6 space-y-5">
             <div className="border-b border-slate-200 pb-4 flex items-center justify-between">
               <div>
                 <div className="text-xs font-mono text-slate-500">HESAP GÜVENLİĞİ (TOTP)</div>
@@ -4786,6 +4896,7 @@ Paket Alarak Aktifliği Yenile →
               </div>
             </div>
           </section>
+          )}
         </div>
       )}
 

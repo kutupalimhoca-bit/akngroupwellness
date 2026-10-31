@@ -5555,7 +5555,7 @@ async function startServer() {
     });
   });
 
-  app.put('/api/v1/members/:userId/profile', (req, res) => {
+  app.put('/api/v1/members/:userId/profile', requireAdminOrOwnMember, (req, res) => {
     const member = members.find((m) => m.user_id === req.params.userId);
     if (!member) {
       res.status(404).json({ status: 'error', message: 'Üye bulunamadı.' });
@@ -5564,7 +5564,6 @@ async function startServer() {
 
     const {
       full_name,
-      email,
       phone,
       city,
       iban_holder_name,
@@ -5578,7 +5577,6 @@ async function startServer() {
       member.full_name = String(full_name).trim();
       member.bank_details.iban_holder_name = member.full_name;
     }
-    if (email) member.email = String(email).trim();
     if (phone) member.phone = String(phone).trim();
     if (city) member.city = String(city).trim();
 
@@ -5591,6 +5589,46 @@ async function startServer() {
     res.json({
       status: 'success',
       message: `${member.full_name} profil ve resmi Banka TR IBAN bilgileri (İsim Eşleşmesi Doğrulanmış) güncellendi.`,
+      state: buildStateResponse(),
+    });
+  });
+
+  app.put('/api/v1/members/:userId/credentials', requireAdminOrOwnMember, (req, res) => {
+    const member = members.find((entry) => entry.user_id === req.params.userId);
+    if (!member) {
+      res.status(404).json({ status: 'error', message: 'Üye bulunamadı.' });
+      return;
+    }
+
+    const currentPassword = String(req.body?.current_password || '');
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const newPassword = String(req.body?.new_password || '');
+    const credentials = memberCredentials.get(member.user_id);
+
+    if (!credentials || !verifyMemberPassword(currentPassword, credentials.salt, credentials.hash)) {
+      res.status(401).json({ status: 'error', message: 'Mevcut parola hatalı.' });
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      res.status(400).json({ status: 'error', message: 'Geçerli bir e-posta adresi girin.' });
+      return;
+    }
+    if (newPassword && newPassword.length < 8) {
+      res.status(400).json({ status: 'error', message: 'Yeni parola en az 8 karakter olmalıdır.' });
+      return;
+    }
+    if (members.some((entry) => entry.user_id !== member.user_id && entry.email?.trim().toLowerCase() === email)) {
+      res.status(409).json({ status: 'error', message: 'Bu e-posta adresi başka bir bayi tarafından kullanılıyor.' });
+      return;
+    }
+
+    member.email = email;
+    if (newPassword) memberCredentials.set(member.user_id, hashMemberPassword(newPassword));
+
+    res.json({
+      status: 'success',
+      message: 'Giriş e-posta adresi ve parola bilgileri güncellendi.',
+      email,
       state: buildStateResponse(),
     });
   });

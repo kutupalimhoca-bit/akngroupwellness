@@ -156,17 +156,17 @@ export const ADMIN_SESSION_KEY = 'aurabio_admin_session_v1';
 export const ADMIN_TAB_KEY = 'aurabio_admin_tab_v1';
 const ADMIN_TABS = ['members', 'packages', 'resellers', 'dealers', 'devices', 'invoices', 'campaigns', 'scans', 'monoline_sql', 'site_content', 'ethics_guidelines'] as const;
 type AdminTab = typeof ADMIN_TABS[number];
-const ADMIN_MODULE_LINKS: { id: Exclude<AdminTab, 'monoline_sql'>; label: string }[] = [
-  { id: 'members', label: 'Üye & Ödeme Onayları' },
-  { id: 'packages', label: 'Dinamik Paket Yönetimi' },
-  { id: 'resellers', label: 'Bayi & Komisyon Yönetimi' },
-  { id: 'dealers', label: 'Bayi Başvuruları' },
-  { id: 'devices', label: 'Cihaz Demo Yönetimi' },
-  { id: 'invoices', label: 'Dijital E-Fatura Yönetimi' },
-  { id: 'campaigns', label: 'Kampanyalar & Fırsatlar' },
-  { id: 'site_content', label: 'Site İçerikleri' },
-  { id: 'ethics_guidelines', label: 'Etik Kurallar' },
-  { id: 'scans', label: 'Tarama Kayıtları' },
+const ADMIN_MODULE_LINKS: { id: Exclude<AdminTab, 'monoline_sql'>; label: string; icon: React.ComponentType<{ className?: string }>; color: string }[] = [
+  { id: 'members', label: 'Üye & Ödeme Onayları', icon: Users, color: 'emerald' },
+  { id: 'packages', label: 'Dinamik Paket Yönetimi', icon: Package, color: 'teal' },
+  { id: 'resellers', label: 'Bayi & Komisyon Yönetimi', icon: Building2, color: 'cyan' },
+  { id: 'dealers', label: 'Bayi Başvuruları', icon: Briefcase, color: 'amber' },
+  { id: 'devices', label: 'Cihaz Demo Yönetimi', icon: Smartphone, color: 'blue' },
+  { id: 'invoices', label: 'Dijital E-Fatura Yönetimi', icon: Receipt, color: 'violet' },
+  { id: 'campaigns', label: 'Kampanyalar & Fırsatlar', icon: Gift, color: 'pink' },
+  { id: 'site_content', label: 'Site İçerikleri', icon: FileText, color: 'sky' },
+  { id: 'ethics_guidelines', label: 'Etik Kurallar', icon: ShieldAlert, color: 'orange' },
+  { id: 'scans', label: 'Tarama Kayıtları', icon: Clock, color: 'rose' },
 ];
 
 export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
@@ -1821,7 +1821,7 @@ const [scanActionMsg, setScanActionMsg] = useState<string | null>(null);
 
         {/* Tab Switcher if Authenticated */}
         {isAuthenticated && (
-          <div className="px-6 py-2.5 bg-slate-950/70 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 shrink-0">
+          <div className="hidden">
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => setAdminTab('monoline_sql')}
@@ -2138,11 +2138,66 @@ const [scanActionMsg, setScanActionMsg] = useState<string | null>(null);
         ) : (
           /* Main Admin Workspace */
           <div
-            className={`flex-1 overflow-y-auto ${
-              isFullPageAdmin ? 'p-0' : 'p-6 space-y-6'
-            }`}
+            className="flex-1 min-h-0"
           >
-            
+            <div className="grid h-full min-h-0 grid-cols-1 xl:grid-cols-[280px_minmax(0,1fr)]">
+              <aside className="max-h-64 overflow-y-auto border-b border-slate-800 bg-gradient-to-b from-slate-950 to-slate-900 p-4 xl:max-h-none xl:border-b-0 xl:border-r xl:p-5">
+                <div className="mb-4 px-2">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-300">Yönetim Merkezi</p>
+                  <h3 className="mt-1 text-lg font-extrabold text-white">Kontrol Paneli</h3>
+                  <p className="mt-1 text-xs text-slate-400">Bir bölüm seçerek içeriklerini görüntüleyin.</p>
+                </div>
+                <nav className="space-y-1.5" aria-label="Yönetici bölümleri">
+                  <button
+                    type="button"
+                    onClick={() => setAdminTab('monoline_sql')}
+                    className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left text-xs font-bold transition-all ${adminTab === 'monoline_sql' ? 'border-emerald-300/50 bg-gradient-to-r from-emerald-500/25 to-teal-500/15 text-white shadow-lg shadow-emerald-950/30' : 'border-slate-800 bg-slate-900/70 text-slate-300 hover:border-emerald-400/40 hover:bg-slate-800'}`}
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-400/15 text-emerald-300"><Award className="h-4 w-4" /></span>
+                    <span>Monoline Yönetimi</span>
+                  </button>
+                  {ADMIN_MODULE_LINKS.map(({ id, label, icon: Icon, color }) => {
+                    const isActive = adminTab === id;
+                    const iconColors: Record<string, string> = {
+                      emerald: 'bg-emerald-400/15 text-emerald-300',
+                      teal: 'bg-teal-400/15 text-teal-300',
+                      cyan: 'bg-cyan-400/15 text-cyan-300',
+                      amber: 'bg-amber-400/15 text-amber-300',
+                      blue: 'bg-blue-400/15 text-blue-300',
+                      violet: 'bg-violet-400/15 text-violet-300',
+                      pink: 'bg-pink-400/15 text-pink-300',
+                      sky: 'bg-sky-400/15 text-sky-300',
+                      orange: 'bg-orange-400/15 text-orange-300',
+                      rose: 'bg-rose-400/15 text-rose-300',
+                    };
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => {
+                          setAdminTab(id);
+                          if (id === 'devices') loadDeviceSessions();
+                          if (id === 'scans') loadScanRecords(true);
+                        }}
+                        className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left text-xs font-semibold transition-all ${isActive ? 'border-indigo-300/50 bg-gradient-to-r from-indigo-500/25 to-violet-500/15 text-white shadow-lg shadow-indigo-950/30' : 'border-slate-800 bg-slate-900/70 text-slate-300 hover:border-slate-600 hover:bg-slate-800'}`}
+                      >
+                        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconColors[color]}`}><Icon className="h-4 w-4" /></span>
+                        <span className="min-w-0 flex-1">{label}</span>
+                        {adminModuleCounts[id] !== undefined && <span className="rounded-full bg-slate-800 px-2 py-1 text-[10px] text-slate-300">{adminModuleCounts[id]}</span>}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => setIsDocumentsOpen(true)}
+                    className="flex w-full items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-3 text-left text-xs font-semibold text-slate-300 transition-all hover:border-emerald-400/40 hover:bg-slate-800"
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fuchsia-400/15 text-fuchsia-300"><FileText className="h-4 w-4" /></span>
+                    <span>Dökümanlar</span>
+                  </button>
+                </nav>
+              </aside>
+              <main className="min-w-0 min-h-0 max-w-full overflow-auto overscroll-contain p-4 sm:p-6 space-y-6">
             {/* Notification Banner */}
             {actionSuccessMsg && (
               <div className="p-4 rounded-2xl bg-emerald-950/80 border border-emerald-500/50 text-xs text-emerald-300 flex items-center justify-between animate-fade-in shadow-lg">
@@ -4849,40 +4904,8 @@ const [scanActionMsg, setScanActionMsg] = useState<string | null>(null);
 
             {/* TAB 9: MONOLINE 7 NEFIS MLM YÖNETİCİ PANELİ & SQL (ONLY VISIBLE WHEN ADMIN IS AUTHENTICATED) */}
             {adminTab === 'monoline_sql' && (
-              <div className="w-full min-h-full bg-slate-50">
+              <div className="min-w-0 w-full max-w-full bg-slate-50">
                 <MonolineMlmPortalModal
-                  adminModuleNavigation={(
-                    <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-3 shadow-sm">
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-900">Yönetim Modülleri</h3>
-                        <p className="text-xs text-slate-500 mt-1">Yönetici araçları Frekans yönetim panelinin içindedir.</p>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2">
-                        {ADMIN_MODULE_LINKS.map(({ id, label }) => (
-                          <button
-                            key={id}
-                            type="button"
-                            onClick={() => {
-                              setAdminTab(id);
-                              if (id === 'devices') loadDeviceSessions();
-                              if (id === 'scans') loadScanRecords(true);
-                            }}
-                            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-left text-xs font-semibold text-slate-700 hover:border-emerald-400 hover:bg-emerald-50 transition-colors"
-                          >
-                            {label}{adminModuleCounts[id] !== undefined ? ` (${adminModuleCounts[id]})` : ''}
-                          </button>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={() => setIsDocumentsOpen(true)}
-                          className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-left text-xs font-semibold text-slate-700 hover:border-emerald-400 hover:bg-emerald-50 transition-colors flex items-center gap-2"
-                        >
-                          <FileText className="w-4 h-4 text-emerald-600" />
-                          Dökümanlar
-                        </button>
-                      </div>
-                    </section>
-                  )}
                   isOpen={true}
                   embedded={true}
                   initialSubTab="admin"
@@ -4907,7 +4930,8 @@ const [scanActionMsg, setScanActionMsg] = useState<string | null>(null);
                 )}
               </div>
             )}
-
+              </main>
+            </div>
           </div>
         )}
 

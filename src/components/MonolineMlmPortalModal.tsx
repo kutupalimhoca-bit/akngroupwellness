@@ -4,7 +4,7 @@ import { AdminConsoleView } from './AdminConsoleView';
 import { CareerMatrixView } from './CareerMatrixView';
 import { CommissionEngineView } from './CommissionEngineView';
 import { DataBackupRestoreModal } from './DataBackupRestoreModal';
-import { DealerBackOfficeView } from './DealerBackOfficeView';
+import { DealerBackOfficeView, type DealerBackOfficeSubTab } from './DealerBackOfficeView';
 import { LedgerTransactionsView } from './LedgerTransactionsView';
 import { MonolineTimelineView } from './MonolineTimelineView';
 import { PackagesCatalogView } from './PackagesCatalogView';
@@ -16,7 +16,8 @@ import {
   syncFrekansWithMonolineEngine,
 } from '../utils/monolineSyncBridge';
 import { getActiveResellerSession } from '../utils/resellerManager';
-import { getActiveMemberSession, getMemberWalletToken } from '../utils/authManager';
+import { getAdminToken } from '../utils/adminSession';
+import { getActiveMemberSession, getMemberWalletToken, updateMemberProfile } from '../utils/authManager';
 import { wipeAllLocalApplicationData } from '../lib/firebase';
 import {
   CareerTier,
@@ -45,7 +46,7 @@ interface MonolineMlmPortalModalProps {
   onSubTabChange?: (tab: MonolineSubTab) => void;
   embedded?: boolean;
   isAdminAuthenticated?: boolean;
-  adminModuleNavigation?: React.ReactNode;
+
 }
 
 export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
@@ -56,7 +57,7 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
   onSubTabChange,
   embedded = false,
   isAdminAuthenticated = false,
-  adminModuleNavigation,
+
 }) => {
   const safeInitialTab: MonolineSubTab =
     !isAdminAuthenticated &&
@@ -78,6 +79,7 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
     | undefined
   >(undefined);
   const [selectedMemberId, setSelectedMemberId] = useState<string>('');
+  const [dealerBackOfficeTab, setDealerBackOfficeTab] = useState<DealerBackOfficeSubTab>('wallet');
   const [lastTransaction, setLastTransaction] = useState<CommissionTransaction | null>(null);
   const [checkoutRequest, setCheckoutRequest] = useState<{
     packageId: string;
@@ -464,7 +466,6 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
     userId: string,
     profileData: {
       full_name: string;
-      email: string;
       phone: string;
       city: string;
       iban_holder_name: string;
@@ -476,9 +477,11 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
   ) => {
     setIsSubmitting(true);
     try {
+      const token = getAdminToken() || getMemberWalletToken();
+      if (!token) throw new Error('Güvenli bayi oturumu yok; yeniden giriş yapın.');
       const res = await fetch(`/api/v1/members/${userId}/profile`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(profileData),
       });
       const data = await res.json();
@@ -487,6 +490,37 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
       showNotice('success', data.message);
     } catch (err: any) {
       showNotice('error', err?.message || 'Hata oluştu.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateCredentials = async (
+    userId: string,
+    credentials: { current_password: string; email: string; new_password?: string }
+  ): Promise<boolean> => {
+    setIsSubmitting(true);
+    try {
+      const token = getAdminToken() || getMemberWalletToken();
+      if (!token) throw new Error('Güvenli bayi oturumu yok; yeniden giriş yapın.');
+      const res = await fetch(`/api/v1/members/${userId}/credentials`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(credentials),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Giriş bilgileri güncellenemedi.');
+      const localUpdate = await updateMemberProfile(userId, {
+        email: data.email,
+        newPassword: credentials.new_password,
+      });
+      if (!localUpdate.success) throw new Error(localUpdate.message);
+      setState(data.state);
+      showNotice('success', data.message);
+      return true;
+    } catch (err: any) {
+      showNotice('error', err?.message || 'Giriş bilgileri güncellenemedi.');
+      return false;
     } finally {
       setIsSubmitting(false);
     }
@@ -881,14 +915,14 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
   if (!isOpen && !embedded) return null;
 
   const innerContent = (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
-      <div className="bg-white/95 backdrop-blur-xs border-b border-slate-200 sticky top-0 z-30">
-        <div className="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-3 px-6 py-3.5">
-          <div className="flex flex-wrap items-center gap-2">
+    <div className={`flex flex-col bg-slate-50 text-slate-900 lg:flex-row ${embedded ? 'min-h-screen' : 'h-screen min-h-0 overflow-hidden'}`}>
+      <div className="z-30 max-h-[40vh] shrink-0 overflow-y-auto border-b border-slate-200 bg-white/95 backdrop-blur-xs lg:sticky lg:top-0 lg:h-screen lg:max-h-screen lg:w-72 lg:border-b-0 lg:border-r">
+        <div className="mx-auto flex w-full max-w-[1600px] flex-col items-stretch gap-4 px-4 py-4 lg:px-4">
+          <div className="flex flex-col gap-2">
             <button
               type="button"
               onClick={() => setActiveTab('backoffice')}
-              className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap shrink-0 border cursor-pointer ${
+              className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all w-full justify-start text-left whitespace-normal border cursor-pointer ${
                 activeTab === 'backoffice'
                   ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
                   : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
@@ -897,10 +931,40 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
               Bayi Back-Office
             </button>
 
+            {activeTab === 'backoffice' && !isAdminAuthenticated && (
+              <div className="ml-2 flex flex-col gap-1.5 border-l border-slate-200 pl-2.5">
+                {([
+                  ['wallet', '1. Cüzdan & Banka'],
+                  ['activity', '2. Aktiflik & Paket'],
+                  ['referral', '3. Referans & QR'],
+                  ['network', '4. Ağ Yapısı'],
+                  ['profile', '5. Bayi Profil Güncelleme'],
+                  ['security', '6. Hesap Güvenliği & 2FA'],
+                  ['plaque', '7. Kariyer Plaketi'],
+                  ['feedback', '8. Şikayet & Öneri'],
+                  ['documents', '9. Dökümanlar'],
+                ] as const).map(([tab, label]) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setDealerBackOfficeTab(tab)}
+                    aria-current={dealerBackOfficeTab === tab ? 'page' : undefined}
+                    className={`w-full rounded-lg border px-3 py-2 text-left text-[11px] font-semibold leading-snug whitespace-normal transition-colors cursor-pointer ${
+                      dealerBackOfficeTab === tab
+                        ? 'border-emerald-600 bg-emerald-600 text-white'
+                        : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <button
               type="button"
               onClick={() => setActiveTab('packages')}
-              className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap shrink-0 border cursor-pointer ${
+              className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all w-full justify-start text-left whitespace-normal border cursor-pointer ${
                 activeTab === 'packages'
                   ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
                   : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
@@ -912,7 +976,7 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('mlm_7nefis')}
-              className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap shrink-0 border cursor-pointer ${
+              className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all w-full justify-start text-left whitespace-normal border cursor-pointer ${
                 activeTab === 'mlm_7nefis'
                   ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
                   : 'bg-indigo-50 text-indigo-900 border-indigo-200 hover:bg-indigo-100'
@@ -924,7 +988,7 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('monoline')}
-              className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap shrink-0 border cursor-pointer ${
+              className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all w-full justify-start text-left whitespace-normal border cursor-pointer ${
                 activeTab === 'monoline'
                   ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
                   : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
@@ -941,7 +1005,7 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
                     setAdminSection('params');
                     setActiveTab('admin');
                   }}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 border cursor-pointer ${
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all w-full justify-start text-left whitespace-normal border cursor-pointer ${
                     activeTab === 'admin' && adminSection === 'params'
                       ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
                       : 'bg-indigo-50 text-indigo-950 border-indigo-300 hover:bg-indigo-100'
@@ -956,7 +1020,7 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
                     setAdminSection(undefined);
                     setActiveTab('admin');
                   }}
-                  className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap shrink-0 border cursor-pointer ${
+                  className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all w-full justify-start text-left whitespace-normal border cursor-pointer ${
                     activeTab === 'admin' &&
                     adminSection !== 'bonuses' &&
                     adminSection !== 'strategic_growth' &&
@@ -974,7 +1038,7 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
                     setAdminSection('strategic_growth');
                     setActiveTab('admin');
                   }}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 border cursor-pointer ${
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all w-full justify-start text-left whitespace-normal border cursor-pointer ${
                     activeTab === 'admin' && adminSection === 'strategic_growth'
                       ? 'bg-purple-700 text-white border-purple-700 shadow-xs'
                       : 'bg-purple-50 text-purple-950 border-purple-300 hover:bg-purple-100'
@@ -989,7 +1053,7 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
                     setAdminSection('bonuses');
                     setActiveTab('admin');
                   }}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 border cursor-pointer ${
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all w-full justify-start text-left whitespace-normal border cursor-pointer ${
                     activeTab === 'admin' && adminSection === 'bonuses'
                       ? 'bg-amber-500 text-slate-950 border-amber-500 shadow-xs'
                       : 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100'
@@ -1001,7 +1065,7 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setActiveTab('webhook')}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 border cursor-pointer ${
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all w-full justify-start text-left whitespace-normal border cursor-pointer ${
                     activeTab === 'webhook'
                       ? 'bg-slate-900 text-amber-300 border-slate-900 shadow-xs'
                       : 'bg-slate-100 text-slate-800 border-slate-300 hover:bg-slate-200'
@@ -1013,7 +1077,7 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <div className="flex flex-col gap-2 shrink-0">
             {isAdminAuthenticated && (
               <>
                 <button
@@ -1058,8 +1122,7 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 max-w-[1600px] w-full mx-auto px-6 py-8 space-y-8">
-        {adminModuleNavigation}
+      <div className={`min-w-0 max-w-full flex-1 space-y-8 p-4 sm:p-6 xl:p-8 ${embedded ? 'overflow-x-auto' : 'min-h-0 overflow-auto'}`}>
 
         {feedbackBanner && (
           <div
@@ -1362,6 +1425,8 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
 
             {activeTab === 'backoffice' && (
               <DealerBackOfficeView
+                subTab={dealerBackOfficeTab}
+                onSubTabChange={setDealerBackOfficeTab}
                 members={state.members}
                 selectedMemberId={selectedMemberId}
                 onSelectMember={(id) => setSelectedMemberId(id)}
@@ -1387,6 +1452,7 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
                 onCreateWithdrawal={handleCreateWithdrawal}
                 onReleasePendingBalance={handleReleasePendingBalance}
                 onUpdateProfile={handleUpdateProfile}
+                onUpdateCredentials={handleUpdateCredentials}
                 onToggle2FA={handleToggle2FA}
                 onRenewActivityPackage={handleRenewActivityPackage}
                 onRegisterReferralMember={handleRegisterMember}
@@ -1570,7 +1636,7 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-xs">
+    <div className="fixed inset-0 z-50 overflow-hidden bg-slate-950/80 backdrop-blur-xs">
       {innerContent}
     </div>
   );
