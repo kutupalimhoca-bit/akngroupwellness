@@ -424,7 +424,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-
+          Authorization: `Bearer ${getAdminToken() || ''}`,
         },
         body: JSON.stringify({
           target_user_id: targetUserId,
@@ -458,7 +458,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-
+          Authorization: `Bearer ${getAdminToken() || ''}`,
         },
         body: JSON.stringify({
           status,
@@ -491,9 +491,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
     try {
       const res = await fetch(`/api/v1/admin/feedback-tickets/${encodeURIComponent(ticketId)}`, {
         method: 'DELETE',
-        headers: {
-
-        },
+        headers: { Authorization: `Bearer ${getAdminToken() || ''}` },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Bildirim silinemedi.');
@@ -549,7 +547,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-
+          Authorization: `Bearer ${getAdminToken() || ''}`,
         },
         body: JSON.stringify(patch),
       });
@@ -566,7 +564,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
     try {
       const res = await fetch('/api/v1/fomo/trigger-48h-alert', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
         body: JSON.stringify({
           user_id: strategicTargetUserId,
           at_risk_amount: 2400,
@@ -586,7 +584,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
     try {
       const res = await fetch('/api/v1/fomo/rescue-commission', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
         body: JSON.stringify({ alert_id: alertId, user_id: externalUserId }),
       });
       const data = await res.json();
@@ -603,7 +601,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
     try {
       const res = await fetch('/api/v1/p2p/transfer', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
         body: JSON.stringify({
           from_user_id: strategicTargetUserId,
           to_user_id: adminP2pRecipientId,
@@ -629,7 +627,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
     try {
       const res = await fetch('/api/v1/p2p/create-voucher', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
         body: JSON.stringify({
           creator_user_id: strategicTargetUserId,
           package_id: adminVoucherPkgId,
@@ -650,7 +648,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
     try {
       const res = await fetch('/api/v1/p2p/redeem-voucher', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
         body: JSON.stringify({
           voucher_code: code,
           redeemer_user_id: strategicTargetUserId,
@@ -670,7 +668,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
     try {
       const res = await fetch('/api/v1/admin/rewards/trigger-welcome-double-bonus', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
         body: JSON.stringify({ user_id: strategicTargetUserId }),
       });
       const data = await res.json();
@@ -686,7 +684,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
     try {
       const res = await fetch('/api/v1/notifications/send-whatsapp-story', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
         body: JSON.stringify({
           user_id: strategicTargetUserId,
           order_amount: 50000,
@@ -718,7 +716,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
 
       const res = await fetch('/api/v1/integrations/order-refund', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
         body: JSON.stringify({
           order_id: latestCompletedOrder.order_id,
           reason: `Yönetici Cayma / İade (Clawback) İşlemi (${adminRefundAmount.toLocaleString('tr-TR')} $)`,
@@ -742,7 +740,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
 
   React.useEffect(() => {
     if (adminSection !== 'params') return;
-    fetch('/api/v1/admin/exchange-rate')
+    fetch('/api/v1/admin/exchange-rate', { headers: { Authorization: `Bearer ${getAdminToken() || ''}` } })
       .then((res) => res.json())
       .then((data) => {
         if (data.status === 'success') setUsdRateInfo(data.data);
@@ -762,7 +760,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
     try {
       const res = await fetch('/api/v1/admin/exchange-rate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
         body: JSON.stringify({ usd_try_rate: rate }),
       });
       const data = await res.json();
@@ -894,7 +892,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-
+          Authorization: `Bearer ${getAdminToken() || ''}`,
         },
         body: JSON.stringify({ decision, admin_note: note }),
       });
@@ -1055,7 +1053,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
     setIsExportingData(true);
     try {
       if (onRefreshState) await onRefreshState();
-      const res = await fetch('/api/v1/admin/export-data');
+      const res = await fetch('/api/v1/admin/export-data', { headers: { Authorization: `Bearer ${getAdminToken() || ''}` } });
       if (res.ok) {
         const json = await res.json();
         setDataJsonCode(JSON.stringify(json, null, 2));
@@ -1122,7 +1120,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
       } else {
         const res = await fetch('/api/v1/admin/restore-data', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
           body: JSON.stringify({ data: payload }),
         });
         const resJson = await res.json();
@@ -1173,179 +1171,128 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
     0
   );
 
+  const pendingTicketCount = (feedbackTickets || []).filter((t) => t.status === 'PENDING').length;
+  const navItemClass = (active: boolean) =>
+    `flex w-full items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg text-left transition-colors cursor-pointer ${
+      active ? 'bg-white text-slate-950 shadow-xs' : 'text-slate-200 hover:text-white hover:bg-white/10'
+    }`;
+  const navGroupTitleClass = 'px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400';
+  const navBadgeClass = 'ml-auto shrink-0 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white';
+
   return (
     <div className="grid min-w-0 max-w-full grid-cols-1 items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-      {/* MODÜL 6 Header & Sub-navigation */}
-      <div className="self-start rounded-2xl border border-indigo-900/70 bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 p-5 shadow-xl lg:sticky lg:top-4">
+      <div className="self-start rounded-2xl border border-indigo-900/70 bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 p-5 shadow-xl lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
         <div>
-          <div className="text-xs font-mono text-emerald-300 font-bold">
-            TAM SAYFA YÖNETİCİ KONSOLU · MONOLINE 7 NEFİS MLM · BAYİ, HAT SIRALAMA & BONUS YÖNETİMİ
+          <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">
+            Yönetici Konsolu
           </div>
-          <h2 className="text-xl font-bold text-white mt-0.5">
-            Bayi Ekleme/Silme, Monoline Sıra & Sponsor Değiştirme, Kariyer Bonus Yönetimi & SQL
-          </h2>
-          <div className="mt-4 flex flex-col items-stretch gap-2">
-            <button
-              type="button"
-              onClick={() => setAdminSection('data_management')}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl cursor-pointer"
-            >
-              <Database className="w-3.5 h-3.5 text-blue-600" />
-              <span>Veri / Data Yönetim Portalı</span>
-            </button>
+          <h2 className="text-lg font-bold text-white mt-0.5">Monoline Yönetimi</h2>
+          <div className="mt-4 grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={handleDownloadAllData}
               disabled={isExportingData}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-emerald-950 bg-emerald-300 hover:bg-emerald-200 rounded-lg cursor-pointer disabled:opacity-50"
             >
-              <Download className="w-3.5 h-3.5 text-emerald-600" />
-              <span>{isExportingData ? 'İndiriliyor...' : 'Veri İndir (JSON/Kod)'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setAdminSection('data_management')}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-purple-900 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl cursor-pointer"
-            >
-              <Upload className="w-3.5 h-3.5 text-purple-600" />
-              <span>Veri Yükle</span>
+              <Download className="w-3.5 h-3.5" />
+              <span>{isExportingData ? 'İndiriliyor...' : 'Veri İndir'}</span>
             </button>
             <button
               type="button"
               onClick={() => setShowResetWarningModal(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-red-950 bg-red-300 hover:bg-red-200 rounded-lg cursor-pointer"
             >
-              <RotateCcw className="w-3.5 h-3.5 text-red-600" />
+              <RotateCcw className="w-3.5 h-3.5" />
               <span>Sistemi Sıfırla</span>
             </button>
           </div>
         </div>
 
-        <nav aria-label="Monoline yönetim bölümleri" className="mt-5 flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-2 [&>button]:w-full [&>button]:justify-start [&>button]:text-left">
+        <nav aria-label="Monoline yönetim bölümleri" className="mt-5 flex flex-col gap-1 rounded-xl border border-white/10 bg-white/5 p-2">
+          <div className={navGroupTitleClass}>Bayi &amp; Bonus</div>
           <button
             type="button"
             onClick={() => setAdminSection('members')}
-            className={`px-3 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-              adminSection === 'members'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-200 hover:text-white hover:bg-white/10'
-            }`}
+            className={navItemClass(adminSection === 'members')}
           >
-            1. Bayi Ekle/Sil, Hat Sıralama & Sponsor ({sortedMembers.length})
+            <span>Bayiler &amp; Hat Sıralama</span>
+            <span className={navBadgeClass}>{sortedMembers.length}</span>
           </button>
           <button
             type="button"
             onClick={() => setAdminSection('bonuses')}
-            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
-              adminSection === 'bonuses'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'bg-emerald-100 text-emerald-900 hover:bg-emerald-200'
-            }`}
+            className={navItemClass(adminSection === 'bonuses')}
           >
-            <Gift className="w-3.5 h-3.5" />
-            <span>2. Bonus Yönetimi (Anında Cüzdana Aktar)</span>
+            <Gift className="w-3.5 h-3.5 shrink-0" />
+            <span>Bonus Yönetimi</span>
           </button>
           <button
             type="button"
             onClick={() => setAdminSection('activity')}
-            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
-              adminSection === 'activity'
-                ? 'bg-indigo-600 text-white shadow-xs'
-                : 'bg-indigo-100 text-indigo-900 hover:bg-indigo-200'
-            }`}
+            className={navItemClass(adminSection === 'activity')}
           >
-            <Timer className="w-3.5 h-3.5" />
-            <span>3. Aktiflik Şartları &amp; Zamanlayıcı Yönetimi</span>
+            <Timer className="w-3.5 h-3.5 shrink-0" />
+            <span>Aktiflik &amp; Zamanlayıcı</span>
           </button>
+          <div className={navGroupTitleClass}>Kariyer &amp; Büyüme</div>
           <button
             type="button"
             onClick={() => setAdminSection('params')}
-            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
-              adminSection === 'params'
-                ? 'bg-amber-600 text-white shadow-xs'
-                : 'bg-amber-100 text-amber-950 hover:bg-amber-200'
-            }`}
+            className={navItemClass(adminSection === 'params')}
           >
-            <Award className="w-3.5 h-3.5" />
-            <span>4. 7 Nefis Kariyer, PGV, %50 Kol &amp; Organizasyon Şartları</span>
+            <Award className="w-3.5 h-3.5 shrink-0" />
+            <span>Kariyer &amp; PGV Şartları</span>
           </button>
           <button
             type="button"
             onClick={() => setAdminSection('strategic_growth')}
-            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
-              adminSection === 'strategic_growth'
-                ? 'bg-purple-700 text-white shadow-xs'
-                : 'bg-purple-100 text-purple-950 hover:bg-purple-200'
-            }`}
+            className={navItemClass(adminSection === 'strategic_growth')}
           >
-            <Zap className="w-3.5 h-3.5" />
-            <span>🚀 5. Büyümeyi 2-3 Katına Çıkaran 5 Stratejik Modül &amp; V2.2 Ayarları</span>
+            <Zap className="w-3.5 h-3.5 shrink-0" />
+            <span>Stratejik Modüller &amp; V2.2</span>
           </button>
+          <div className={navGroupTitleClass}>Finans &amp; Destek</div>
           <button
             type="button"
             onClick={() => setAdminSection('finance')}
-            className={`px-3 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-              adminSection === 'finance'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-200 hover:text-white hover:bg-white/10'
-            }`}
+            className={navItemClass(adminSection === 'finance')}
           >
-            6. Finans & Çekim ({pendingWithdrawals.length} Bekleyen)
+            <span>Finans &amp; Çekim</span>
+            <span className={navBadgeClass}>{pendingWithdrawals.length} bekleyen</span>
           </button>
           <button
             type="button"
             onClick={() => setAdminSection('tax_refunds')}
-            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
-              adminSection === 'tax_refunds'
-                ? 'bg-teal-700 text-white shadow-xs'
-                : 'bg-teal-100 text-teal-950 hover:bg-teal-200 border border-teal-300'
-            }`}
+            className={navItemClass(adminSection === 'tax_refunds')}
           >
-            <span>🧾 Vergi İadesi &amp; Fatura Onayı (%20 İade · {pendingTaxRefunds.length} Bekleyen)</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setAdminSection('webhooks_sql')}
-            className={`px-3 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-              adminSection === 'webhooks_sql'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-200 hover:text-white hover:bg-white/10'
-            }`}
-          >
-            7. Webhook & 6 SQL Tablo
+            <span>Vergi İadesi &amp; Fatura</span>
+            <span className={navBadgeClass}>{pendingTaxRefunds.length} bekleyen</span>
           </button>
           <button
             type="button"
             onClick={() => setAdminSection('feedback_tickets')}
-            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
-              adminSection === 'feedback_tickets'
-                ? 'bg-rose-700 text-white shadow-xs ring-2 ring-rose-400/50'
-                : 'bg-rose-100 text-rose-950 hover:bg-rose-200 border border-rose-300'
-            }`}
+            className={navItemClass(adminSection === 'feedback_tickets')}
           >
-            <MessageSquare className="w-3.5 h-3.5 text-rose-600" />
-            <span>
-              8. 💬 Şikayetler &amp; Öneriler (
-              {(feedbackTickets || []).filter((t) => t.status === 'PENDING').length > 0 ? (
-                <strong className="text-rose-600 underline">
-                  {(feedbackTickets || []).filter((t) => t.status === 'PENDING').length} Yeni
-                </strong>
-              ) : (
-                (feedbackTickets || []).length
-              )}
-              )
+            <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+            <span>Şikayet &amp; Öneriler</span>
+            <span className={navBadgeClass}>
+              {pendingTicketCount > 0 ? `${pendingTicketCount} yeni` : (feedbackTickets || []).length}
             </span>
           </button>
+          <div className={navGroupTitleClass}>Sistem</div>
           {onOpenWebhookTab && (
-            <button
-              type="button"
-              onClick={onOpenWebhookTab}
-              className="px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5 bg-emerald-950 text-amber-300 hover:bg-slate-800 border border-amber-400/40"
-            >
-              <Play className="w-3.5 h-3.5" />
-              <span>⚡ Webhook &amp; 7 Mertebe Komisyon Motoru</span>
+            <button type="button" onClick={onOpenWebhookTab} className={navItemClass(false)}>
+              <Play className="w-3.5 h-3.5 shrink-0" />
+              <span>Webhook &amp; Komisyon Motoru</span>
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => setAdminSection('webhooks_sql')}
+            className={navItemClass(adminSection === 'webhooks_sql')}
+          >
+            <span>Webhook &amp; SQL Tabloları</span>
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -1354,25 +1301,17 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                 handleTestEndpoint('Admin Stats', '/api/v1/admin/stats', 'GET', 'ADMIN');
               }
             }}
-            className={`px-3 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-              adminSection === 'rest_api'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-200 hover:text-white hover:bg-white/10'
-            }`}
+            className={navItemClass(adminSection === 'rest_api')}
           >
-            9. REST API &amp; JWT Test
+            <span>REST API &amp; JWT Test</span>
           </button>
           <button
             type="button"
             onClick={() => setAdminSection('data_management')}
-            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
-              adminSection === 'data_management'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-blue-100 text-blue-950 hover:bg-blue-200 border border-blue-300'
-            }`}
+            className={navItemClass(adminSection === 'data_management')}
           >
-            <Database className="w-3.5 h-3.5" />
-            <span>💾 10. Veri / Data Portalı (Yedek İndir &amp; Yükle)</span>
+            <Database className="w-3.5 h-3.5 shrink-0" />
+            <span>Veri Portalı (Yedek)</span>
           </button>
         </nav>
       </div>
@@ -1384,10 +1323,10 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/10 pb-5">
               <div>
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-bold mb-2">
-                  <span>🚀 YÖNETİCİ KONTROL MERKEZİ · BÜYÜMEYİ 2-3 KATINA ÇIKARAN 5 STRATEJİK İYİLEŞTİRME ÖNERİSİ (CANLI MODÜLLER)</span>
+                  <span>🚀 Stratejik Büyüme Modülleri</span>
                 </div>
-                <h3 className="text-xl font-bold text-white">
-                  1️⃣ 48s FOMO Sayacı · 2️⃣ Hibrit Dinamik Sıkıştırma · 3️⃣ P2P &amp; Kupon · 4️⃣ İlk 30 Gün Duble Bonus · 5️⃣ WhatsApp Business Story
+                <h3 className="text-lg font-bold text-white">
+                  FOMO Sayacı, Dinamik Sıkıştırma, P2P &amp; Kupon, İlk 30 Gün Bonusu, WhatsApp Story
                 </h3>
                 <p className="text-xs text-slate-300 mt-1">
                   Bayi panelinde yer almaması gereken tüm stratejik büyüme motoru ayarları, V2.2 altın revizyon şalterleri, P2P kupon üretimi ve İade/Cayma (Clawback) yönetimi yalnızca bu Yönetici Paneli sekmesinden kontrol edilir.
@@ -2400,21 +2339,13 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                       </label>
                       <input
                         type="number"
-                        min={0}
-                        step={1000}
+                        readOnly
+                        disabled
                         value={tier.minPersonalVolume}
-                        onChange={(e) => {
-                          const next = [...editableTiers];
-                          next[idx] = {
-                            ...next[idx],
-                            minPersonalVolume: Number(e.target.value),
-                          };
-                          setEditableTiers(next);
-                        }}
-                        className="w-full px-2.5 py-1.5 text-xs font-mono bg-white border border-slate-300 rounded-lg"
+                        className="w-full px-2.5 py-1.5 text-xs font-mono bg-slate-100 border border-slate-300 rounded-lg text-slate-500 cursor-not-allowed"
                       />
                       <span className="block text-[10px] text-slate-500 mt-1">
-                        + Aktiflik Süresi Şartı
+                        Kişisel hacim şartı kaldırılmıştır (Varsayılan: 0 USD). Yalnızca aktiflik süresi geçerlidir.
                       </span>
                     </div>
 
@@ -2849,7 +2780,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/15 pb-4">
               <div>
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-bold mb-1.5">
-                  <span>🧾 YÖNETİCİ VERGİ İADESİ &amp; FATURA ONAY PANELİ (%20 STOPAJ / VERGİ İADESİ)</span>
+                  <span>🧾 Vergi İadesi &amp; Fatura Onayı</span>
                 </div>
                 <h3 className="text-lg sm:text-xl font-bold text-white">
                   Fatura Yükleyen Bayilerin %20 Vergi İadesi Talepleri ve Cüzdan Aktarım Merkezi
@@ -5351,10 +5282,10 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
               <div>
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/40 text-blue-300 text-xs font-bold mb-2">
                   <Database className="w-3.5 h-3.5" />
-                  <span>💾 VERİ / DATA YÖNETİM PORTALI · TAM SİSTEM YEDEKLEME & GERİ YÜKLEME</span>
+                  <span>💾 Veri Portalı</span>
                 </div>
-                <h3 className="text-xl font-bold text-white">
-                  Sistem Verilerini JSON/Kod Olarak İndir, Yükle ve Anında Sisteme Entegre Et
+                <h3 className="text-lg font-bold text-white">
+                  Sistem Verilerini İndir, Yükle ve Entegre Et
                 </h3>
                 <p className="text-xs text-slate-300 mt-1 max-w-4xl">
                   Bu portal uygulamanın en son hali ile sürekli güncellenir. Sistemdeki tüm bayiler, sponsorluklar, ekipler, monoline hat dizilimi, sol/sağ kol hacimleri, cüzdanlar, V2.2 komisyon kayıtları, kariyerler ve sistem ayarları tek tıkla kod olarak indirilebilir ve indirilen veriler geri yüklenerek anında canlı sisteme yansıtılabilir.
@@ -5684,8 +5615,8 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                   <MessageSquare className="w-3.5 h-3.5" />
                   <span>Bayi Destek &amp; Geri Bildirim Masası</span>
                 </div>
-                <h3 className="text-xl font-black text-white">
-                  Şikayetler &amp; Öneriler Yönetimi (Geri Bildirim &amp; Çözüm Merkezi)
+                <h3 className="text-lg font-bold text-white">
+                  Şikayetler &amp; Öneriler Yönetimi
                 </h3>
                 <p className="text-xs text-rose-200/80 mt-1 max-w-2xl">
                   Bayiler tarafından iletilen tüm şikayet, öneri, teknik ve cüzdan bildirimlerini inceleyin; gönderen bayinin kimlik ve iletişim detaylarını görüntüleyin, doğrudan bayiye geri bildirim gönderin ve yönetin.

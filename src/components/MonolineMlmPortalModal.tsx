@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, BarChart3, Camera, ChevronDown, ChevronUp, Database, RefreshCw, RotateCcw, X } from 'lucide-react';
 import { AdminConsoleView } from './AdminConsoleView';
 import { CareerMatrixView } from './CareerMatrixView';
@@ -192,14 +192,18 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
 
   const fetchSystemState = async (runLiveSync = false) => {
     try {
-      if (runLiveSync) {
+      if (runLiveSync && isAdminAuthenticated) {
         const syncedState = await syncFrekansWithMonolineEngine();
         if (syncedState) {
           applyServerState(syncedState);
           return;
         }
       }
-      const res = await fetch('/api/v1/state');
+      const token = getAdminToken() || getMemberWalletToken();
+      if (!token) throw new Error('Güvenli oturum yok; yeniden giriş yapın.');
+      const res = await fetch('/api/v1/state', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (!res.ok) throw new Error('Sunucu durum bilgisi alınamadı.');
       const data: SystemStateResponse = await res.json();
       applyServerState(data);
@@ -230,6 +234,8 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
     };
   }, []);
 
+  const careerPayoutBatchIdRef = useRef<string | null>(null);
+
   // Periodic real-time polling for live D3 Sales Volume Chart when portal is open
   useEffect(() => {
     if (!isOpen || !isLivePolling) return;
@@ -253,9 +259,11 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
   ): Promise<CommissionTransaction | null> => {
     setIsSubmitting(true);
     try {
+      const token = getAdminToken() || getMemberWalletToken();
+      if (!token) throw new Error('Güvenli oturum yok; yeniden giriş yapın.');
       const res = await fetch('/api/v1/integrations/order-commission', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
       const data = await res.json();
@@ -369,9 +377,11 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
   const handleToggleDepthLock = async (enforce: boolean) => {
     setIsSubmitting(true);
     try {
+      const token = getAdminToken();
+      if (!token) throw new Error('Yönetici oturumu bulunamadı.');
       const res = await fetch('/api/v1/settings/depth-lock', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ enforce }),
       });
       const data = await res.json();
@@ -392,9 +402,11 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
   const handleBoostMemberCareer = async (userId: string, targetLevel: number) => {
     setIsSubmitting(true);
     try {
+      const token = getAdminToken();
+      if (!token) throw new Error('Yönetici oturumu bulunamadı.');
       const res = await fetch(`/api/v1/members/${userId}/boost-career`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ target_level: targetLevel }),
       });
       const data = await res.json();
@@ -448,8 +460,11 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
   const handleReleasePendingBalance = async (userId: string) => {
     setIsSubmitting(true);
     try {
+      const token = getAdminToken();
+      if (!token) throw new Error('Yönetici oturumu bulunamadı.');
       const res = await fetch(`/api/v1/members/${userId}/release-pending`, {
         method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'İşlem başarısız.');
@@ -526,34 +541,13 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
     }
   };
 
-  const handleToggle2FA = async (userId: string, enabled: boolean, code: string) => {
-    setIsSubmitting(true);
-    try {
-      const res = await fetch(`/api/v1/members/${userId}/2fa`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled, verification_code: code }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || '2FA işlemi başarısız.');
-      setState(data.state);
-      showNotice('success', data.message);
-    } catch (err: any) {
-      showNotice('error', err?.message || 'Hata oluştu.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const handleUpdateCareers = async (tiers: CareerTier[]) => {
     setIsSubmitting(true);
     try {
       const res = await fetch('/api/v1/admin/settings', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
         body: JSON.stringify({ tiers }),
       });
       const data = await res.json();
@@ -576,7 +570,7 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
     try {
       const res = await fetch(`/api/v1/admin/withdrawals/${id}/decision`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
         body: JSON.stringify({ decision, admin_note: note }),
       });
       const data = await res.json();
@@ -595,6 +589,7 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
     try {
       const res = await fetch('/api/v1/admin/withdrawals/bulk-approve', {
         method: 'POST',
+        headers: { Authorization: `Bearer ${getAdminToken() || ''}` },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Toplu onay başarısız.');
@@ -627,10 +622,7 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
     try {
       const res = await fetch(`/api/v1/admin/members/${userId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
         body: JSON.stringify(payload),
       });
       const data = await res.json();
@@ -652,9 +644,7 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
     try {
       const res = await fetch(`/api/v1/admin/members/${userId}`, {
         method: 'DELETE',
-        headers: {
-
-        },
+        headers: { Authorization: `Bearer ${getAdminToken() || ''}` },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Üye silinemedi.');
@@ -671,7 +661,9 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
 
   const handleExportData = async () => {
     try {
-      const res = await fetch('/api/v1/admin/export-data');
+      const res = await fetch('/api/v1/admin/export-data', {
+        headers: { Authorization: `Bearer ${getAdminToken() || ''}` },
+      });
       const json = await res.json();
       return json;
     } catch (err: any) {
@@ -685,7 +677,7 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
     try {
       const res = await fetch('/api/v1/admin/restore-data', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
         body: JSON.stringify({ data: payloadData }),
       });
       const data = await res.json();
@@ -711,18 +703,19 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
     target_user_id?: string;
     note?: string;
   }) => {
+    if (!careerPayoutBatchIdRef.current) {
+      careerPayoutBatchIdRef.current = `CP-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    }
     setIsSubmitting(true);
     try {
       const res = await fetch('/api/v1/admin/bonuses/career-payout', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-
-        },
-        body: JSON.stringify(payload),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
+        body: JSON.stringify({ ...payload, batch_id: careerPayoutBatchIdRef.current }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Kariyer bonusu aktarılamadı.');
+      careerPayoutBatchIdRef.current = null;
       setState(data.state);
       showNotice('success', data.message);
     } catch (err: any) {
@@ -765,10 +758,7 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
     try {
       const res = await fetch('/api/v1/cron/career-trigger', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-
-        },
+        headers: { Authorization: `Bearer ${getAdminToken() || ''}` },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Cron Job çalıştırılamadı.');
@@ -786,10 +776,7 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
     try {
       const res = await fetch('/api/v1/cron/activity-check', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-
-        },
+        headers: { Authorization: `Bearer ${getAdminToken() || ''}` },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Aktiflik Cron Job çalıştırılamadı.');
@@ -807,10 +794,7 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
     try {
       const res = await fetch('/api/v1/admin/member-activity-action', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
         body: JSON.stringify({
           user_id: userId,
           action: 'EXPIRE_NOW',
@@ -869,7 +853,10 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
     }
     setIsSubmitting(true);
     try {
-      const res = await fetch('/api/v1/admin/reset-metrics', { method: 'POST' });
+      const res = await fetch('/api/v1/admin/reset-metrics', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getAdminToken() || ''}` },
+      });
       const data = await res.json();
       if (res.ok && data.state) {
         applyServerState(data.state);
@@ -1453,7 +1440,6 @@ export const MonolineMlmPortalModal: React.FC<MonolineMlmPortalModalProps> = ({
                 onReleasePendingBalance={handleReleasePendingBalance}
                 onUpdateProfile={handleUpdateProfile}
                 onUpdateCredentials={handleUpdateCredentials}
-                onToggle2FA={handleToggle2FA}
                 onRenewActivityPackage={handleRenewActivityPackage}
                 onRegisterReferralMember={handleRegisterMember}
                 isSubmitting={isSubmitting}

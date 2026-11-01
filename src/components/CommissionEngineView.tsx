@@ -168,7 +168,7 @@ export const CommissionEngineView: React.FC<CommissionEngineViewProps> = ({
     try {
       const res = await fetch('/api/v1/admin/cron/release-clawback', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
         body: JSON.stringify({
           order_id: targetOrderId || undefined,
         }),
@@ -192,7 +192,7 @@ export const CommissionEngineView: React.FC<CommissionEngineViewProps> = ({
     try {
       const res = await fetch('/api/v1/integrations/order-refund', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
         body: JSON.stringify({
           order_id: ordToRefund,
           reason: refundReason,
@@ -215,7 +215,7 @@ export const CommissionEngineView: React.FC<CommissionEngineViewProps> = ({
     try {
       const res = await fetch('/api/v1/admin/v2-config', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
         body: JSON.stringify({
           ...effectiveV2Config,
           ...patch,
@@ -238,7 +238,7 @@ export const CommissionEngineView: React.FC<CommissionEngineViewProps> = ({
     try {
       const res = await fetch('/api/v1/admin/queue/burst-test', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
         body: JSON.stringify({ count: 4 }),
       });
       const data = await res.json();
@@ -266,7 +266,7 @@ export const CommissionEngineView: React.FC<CommissionEngineViewProps> = ({
     try {
       const res = await fetch('/api/v1/integrations/order-commission', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
         body: JSON.stringify({
           user_id: userId || members[0]?.user_id || 'USR-TEST',
           order_id: existingOrdId,
@@ -294,7 +294,7 @@ export const CommissionEngineView: React.FC<CommissionEngineViewProps> = ({
     try {
       const res = await fetch('/api/v1/career-pool/distribute', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Havuz dağıtımı başarısız.');
@@ -2052,7 +2052,7 @@ const worker = new Worker('commission-processing', async (job) => {
                                       `/api/v1/admin/compliance/member/${m.user_id}`,
                                       {
                                         method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
+                                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
                                         body: JSON.stringify({
                                           has_tax_company: !m.has_tax_company,
                                           contract_version: 'v2.0',
@@ -2328,7 +2328,7 @@ const worker = new Worker('commission-processing', async (job) => {
                                     onClick={async () => {
                                       await fetch(`/api/v1/admin/fraud/${fa.id}/decision`, {
                                         method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
+                                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
                                         body: JSON.stringify({ decision: 'APPROVE' }),
                                       });
                                       if (onRefreshState) await onRefreshState();
@@ -2342,7 +2342,7 @@ const worker = new Worker('commission-processing', async (job) => {
                                     onClick={async () => {
                                       await fetch(`/api/v1/admin/fraud/${fa.id}/decision`, {
                                         method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
+                                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
                                         body: JSON.stringify({ decision: 'REJECT_REFUND' }),
                                       });
                                       if (onRefreshState) await onRefreshState();
@@ -2381,7 +2381,7 @@ const worker = new Worker('commission-processing', async (job) => {
                       try {
                         const res = await fetch('/api/v1/admin/rewards/trigger-fast-start', {
                           method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
                           body: JSON.stringify({
                             user_id: userId || members[0]?.user_id,
                             cash_value: 2500,
@@ -2498,7 +2498,7 @@ const worker = new Worker('commission-processing', async (job) => {
                           '/api/v1/admin/notifications/trigger-expiry-warnings',
                           {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
                             body: JSON.stringify({ user_id: userId || members[0]?.user_id }),
                           }
                         );

@@ -968,7 +968,7 @@ export async function registerMember(
       welcomeBonusBreakdown: '32+32',
       welcomeBonusGrantedAt: nowIso,
       cart: [{ packageId: effectiveStarterPkg, quantity: 1 }],
-      paymentStatus: 'PAID',
+      paymentStatus: 'PENDING',
       demoUsed: wasDemoUsed,
       resellerId: resellerId || '',
       referredByCode: referredByCode || '',
@@ -1364,7 +1364,7 @@ export async function adminCreateDealerDirectly(data: {
       isApproved: true,
       expiryDate: null, // Unlimited access
       selectedPackage: data.dealerPackageId || 'pkg-5k',
-      paymentStatus: 'PAID',
+      paymentStatus: 'PENDING',
       role: 'dealer',
       dealerStatus: 'approved',
       isDealerRequested: true,
@@ -1664,7 +1664,11 @@ export async function updateMemberProfile(
 /**
  * Record a member order/transaction to LocalStorage and Firestore
  */
-export async function recordMemberOrder(order: MemberOrder, user?: UserMember): Promise<boolean> {
+export async function recordMemberOrder(
+  order: MemberOrder,
+  user?: UserMember,
+  options: { settledByServer?: boolean } = {}
+): Promise<boolean> {
   try {
     // 1. Save to LocalStorage
     let orders: MemberOrder[] = [];
@@ -1690,7 +1694,7 @@ export async function recordMemberOrder(order: MemberOrder, user?: UserMember): 
     // 3. Trigger Affiliate Commission Record & Monoline 7 Nefis MLM Engine Sync
     try {
       const activeUser = user || getActiveMemberSession();
-      if (activeUser && order.amount > 0 && order.paymentStatus !== 'DEMO') {
+      if (!options.settledByServer && activeUser && order.amount > 0 && order.paymentStatus === 'PAID') {
         import('./resellerManager').then(m => {
           m.recordCommissionForOrder(order, activeUser);
         }).catch(() => {});

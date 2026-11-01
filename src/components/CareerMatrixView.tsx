@@ -617,7 +617,7 @@ export const CareerMatrixView: React.FC<CareerMatrixViewProps> = ({
                       <td className="py-3.5 px-3">
                         <div className="font-semibold text-slate-200">{tier.minPackageLabel}</div>
                         <div className="text-[11px] text-slate-400">
-                          Min. {formatUsd(tier.minPersonalVolume)} + aktif 30 günlük süre
+                          30 günlük aktiflik süresi
                         </div>
                       </td>
 

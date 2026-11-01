@@ -63,6 +63,40 @@ const regionWalletKey = (region) => (region === "INTERNATIONAL" ? "wallet_intern
 const regionPendingKey = (region) => (region === "INTERNATIONAL" ? "pending_international_usd" : "pending_domestic_usd");
 const ACTIVITY_PERIOD_DAYS = 30;
 
+exports.regionalPackagePrices = functions
+  .runWith({ secrets: ["MEMBER_JWT_SECRET", "ADMIN_JWT_SECRET"] })
+  .region("europe-west1")
+  .https.onRequest(async (req, res) => {
+    if (req.method !== "GET") return res.status(405).json({ status: "error", message: "Yalnızca GET kabul edilir." });
+    const userId = String(req.query.user_id || "").trim();
+    const packageIds = String(req.query.package_ids || "").split(",").map((id) => id.trim()).filter(Boolean);
+    if (!userId || !packageIds.length) return res.status(400).json({ status: "error", message: "Kullanıcı ve paket bilgileri zorunludur." });
+
+    const authorization = req.get("authorization") || "";
+    const token = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+    const authorizedUserId = verifySharedDocumentToken(token, "MEMBER", "MEMBER_JWT_SECRET");
+    const authorizedAdmin = verifySharedDocumentToken(token, "ADMIN", "ADMIN_JWT_SECRET");
+    if (!authorizedAdmin && authorizedUserId !== userId) return res.status(403).json({ status: "error", message: "Yalnızca kendi hesabınızın paket fiyatlarını görüntüleyebilirsiniz." });
+
+    try {
+      const userDoc = await db.collection("users").doc(userId).get();
+      if (!userDoc.exists) return res.status(404).json({ status: "error", message: "Kullanıcı bulunamadı." });
+      const region = resolveMemberRegion(userDoc.data()?.country_code);
+      const multiplier = region === "INTERNATIONAL" ? INTERNATIONAL_PACKAGE_MULTIPLIER : 1;
+      const prices = {};
+      for (const packageId of packageIds) {
+        const basePrice = PACKAGE_PRICES[packageId] ?? PACKAGE_PRICES[packageId.toUpperCase()];
+        if (!Number.isFinite(basePrice)) return res.status(400).json({ status: "error", message: "Geçersiz paket kimliği." });
+        prices[packageId] = roundCurrency(basePrice * multiplier);
+      }
+      res.set("Cache-Control", "private, no-store");
+      return res.json({ status: "success", region, prices });
+    } catch (error) {
+      console.error("Regional package prices lookup failed:", error);
+      return res.status(500).json({ status: "error", message: "Paket fiyatları alınamadı." });
+    }
+  });
+
 // V2.2 Komisyon Oranları ve Seviye Tanımları
 const COMMISSION_CONFIG = {
   DIRECT_SPONSOR_RATE: 0.20,
@@ -245,6 +279,7 @@ function getCareerAncestors(member, byUserId, byDocId, byDbId) {
  * POST /api/v1/integrations/order-commission
  */
 exports.handleOrderCommission = functions
+  .runWith({ secrets: ["MEMBER_JWT_SECRET", "ADMIN_JWT_SECRET"] })
   .region("europe-west1")
   .https.onRequest(async (req, res) => {
     // CORS başlıkları
@@ -266,6 +301,7 @@ exports.handleOrderCommission = functions
       order_id,
       order_amount,
       package_id = "PKG_MINI_DENEME",
+      package_items,
       order_type = "STANDARD_ORDER",
       payment_method,
       merchant_oid,
@@ -273,6 +309,21 @@ exports.handleOrderCommission = functions
       client_ip,
       device_fingerprint
     } = req.body || {};
+
+    const authorization = req.get("authorization") || "";
+    const memberToken = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+    const authorizedUserId = verifySharedDocumentToken(memberToken, "MEMBER", "MEMBER_JWT_SECRET");
+    const authorizedAdmin = verifySharedDocumentToken(memberToken, "ADMIN", "ADMIN_JWT_SECRET");
+    if (!authorizedAdmin && (!authorizedUserId || authorizedUserId !== String(user_id || ""))) {
+      return res.status(401).json({ success: false, error: "Bu sipariş için geçerli bayi oturumu gereklidir." });
+    }
+
+    const normalizedPackageItems = Array.isArray(package_items) && package_items.length
+      ? package_items.map((item) => ({ package_id: String(item?.package_id || ""), quantity: Number(item?.quantity) }))
+      : [{ package_id, quantity: 1 }];
+    if (normalizedPackageItems.some((item) => !PACKAGE_PRICES[item.package_id] || !Number.isInteger(item.quantity) || item.quantity < 1)) {
+      return res.status(400).json({ success: false, error: "Sipariş paketleri geçersiz." });
+    }
 
     if (!user_id || order_amount === undefined || order_amount === null) {
       return res.status(400).json({
@@ -291,7 +342,7 @@ exports.handleOrderCommission = functions
         error: "Geçersiz sipariş tutarı: 'order_amount' sıfırdan büyük bir sayı olmalıdır."
       });
     }
-    if (!isActivationOrder && !PACKAGE_PRICES[package_id]) {
+    if (!isActivationOrder && normalizedPackageItems.some((item) => !PACKAGE_CREDITS[item.package_id])) {
       return res.status(400).json({ success: false, error: "Geçersiz paket kimliği." });
     }
     if (payment_method !== "CREDIT_CARD_3D" && payment_method !== "CARD_3D") {
@@ -351,13 +402,16 @@ exports.handleOrderCommission = functions
         if (
           !payment || payment.status !== "SUCCEEDED" || payment.consumed || payment.transaction_id !== transaction_id ||
           payment.order_id !== normalizedOrderId || payment.user_id !== user_id ||
-          Math.round(Number(payment.amount) * 100) !== Math.round(amount * 100)
+          Math.round(Number(payment.amount) * 100) !== Math.round(amount * 100) ||
+          JSON.stringify(payment.package_items || []) !== JSON.stringify(normalizedPackageItems)
         ) throw new Error("Sipariş, tamamlanmış Sanal POS işlemiyle eşleşmiyor.");
         if (!buyerDoc.exists) throw new Error(`Kullanıcı (${user_id}) Firestore veritabanında bulunamadı!`);
 
         const buyerData = buyerDoc.data() || {};
         const buyerRegion = resolveMemberRegion(buyerData.country_code);
-        const expectedBaseAmount = isActivationOrder ? 100 : PACKAGE_PRICES[package_id];
+        const expectedBaseAmount = isActivationOrder
+          ? 100
+          : normalizedPackageItems.reduce((total, item) => total + PACKAGE_PRICES[item.package_id] * item.quantity, 0);
         const expectedAmountCents = expectedBaseAmount * (buyerRegion === "INTERNATIONAL" ? INTERNATIONAL_PACKAGE_MULTIPLIER : 1) * 100;
         if (Math.round(expectedAmountCents) !== Math.round(amount * 100)) {
           throw Object.assign(new Error("Paket tutarı sunucu fiyatıyla eşleşmiyor."), { code: "PACKAGE_AMOUNT_MISMATCH" });
@@ -387,7 +441,9 @@ exports.handleOrderCommission = functions
         const sponsor = sponsorId ? (byUserId.get(String(sponsorId)) || byDocId.get(String(sponsorId))) : null;
 
         // Kişisel hacim ve aktivite süresi sadece sunucu saatiyle hesaplanır; mevcut gelecek bitişe 30 gün eklenir.
-        const sessionCreditsAdded = isActivationOrder ? 0 : PACKAGE_CREDITS[package_id];
+        const sessionCreditsAdded = isActivationOrder
+          ? 0
+          : normalizedPackageItems.reduce((total, item) => total + PACKAGE_CREDITS[item.package_id] * item.quantity, 0);
         if (!isActivationOrder && !sessionCreditsAdded) throw new Error("Paket için seans kredisi tanımı bulunamadı.");
         const currentPv = Number(buyerData.personal_volume || 0);
         buyerMember.personal_volume = roundCurrency(currentPv + amount);
@@ -810,6 +866,7 @@ exports.handleOrderCommission = functions
           user_id,
           order_amount: amount,
           package_id,
+          package_items: normalizedPackageItems,
           order_type,
           payment_method,
           merchant_oid,
@@ -911,7 +968,7 @@ const logPayment = (record) => db.collection("payment_logs").add({
   timestamp: admin.firestore.FieldValue.serverTimestamp()
 });
 
-exports.initiateVpos = functions.region("europe-west1").https.onRequest(async (req, res) => {
+exports.initiateVpos = functions.runWith({ secrets: ["MEMBER_JWT_SECRET", "ADMIN_JWT_SECRET"] }).region("europe-west1").https.onRequest(async (req, res) => {
   if (req.method !== "POST") return res.status(405).json({ status: "error", message: "Yalnızca POST kabul edilir." });
   if (!sandboxPaymentsEnabled()) return res.status(503).json({ status: "error", message: "Sandbox POS bu ortamda kapalıdır." });
   const provider = process.env.PAYMENT_PROVIDER || "SANDBOX_TEST_POS";
@@ -921,12 +978,28 @@ exports.initiateVpos = functions.region("europe-west1").https.onRequest(async (r
   const orderId = String(body.order_id || "").trim();
   const amount = Number(body.amount);
   const card = body.card_details || {};
+  const authorization = req.get("authorization") || "";
+  const memberToken = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+  const authorizedUserId = verifySharedDocumentToken(memberToken, "MEMBER", "MEMBER_JWT_SECRET");
+  const authorizedAdmin = verifySharedDocumentToken(memberToken, "ADMIN", "ADMIN_JWT_SECRET");
+  if (!authorizedAdmin && (!authorizedUserId || authorizedUserId !== userId)) return res.status(401).json({ status: "error", message: "Geçerli bayi oturumu gereklidir." });
+  const packageItems = Array.isArray(body.package_items)
+    ? body.package_items.map((item) => ({ package_id: String(item?.package_id || ""), quantity: Number(item?.quantity) }))
+    : [];
+  if (!packageItems.length || packageItems.some((item) => !PACKAGE_PRICES[item.package_id] || !Number.isInteger(item.quantity) || item.quantity < 1)) {
+    return res.status(400).json({ status: "error", message: "Geçerli paket kalemleri zorunludur." });
+  }
   const digits = String(card.cardNumber || "").replaceAll(" ", "").replaceAll("-", "");
   const scenario = SANDBOX_CARDS[digits];
   const request = { order_id: orderId, amount, card_last4: digits.slice(-4) };
   try {
     if (provider !== "SANDBOX_TEST_POS") throw Object.assign(new Error("Seçili sağlayıcı henüz bağlanmadı."), { code: "PROVIDER_NOT_CONNECTED" });
     if (!userId || !orderId || !Number.isFinite(amount) || amount <= 0) throw Object.assign(new Error("Kullanıcı, sipariş ve pozitif tutar zorunludur."), { code: "INVALID_PAYMENT_CONTEXT" });
+    const userDoc = await db.collection("users").doc(userId).get();
+    if (!userDoc.exists) throw Object.assign(new Error("Kullanıcı hesabı bulunamadı."), { code: "USER_NOT_FOUND" });
+    const region = resolveMemberRegion(userDoc.data()?.country_code);
+    const expectedAmount = packageItems.reduce((total, item) => total + PACKAGE_PRICES[item.package_id] * item.quantity, 0) * (region === "INTERNATIONAL" ? INTERNATIONAL_PACKAGE_MULTIPLIER : 1);
+    if (Math.round(expectedAmount * 100) !== Math.round(amount * 100)) throw Object.assign(new Error("Ödeme tutarı sunucu paket fiyatlarıyla eşleşmiyor."), { code: "PACKAGE_AMOUNT_MISMATCH" });
     if (!card.cardHolder || String(card.cardHolder).trim().length < 3) throw Object.assign(new Error("Kart üzerindeki ad soyad zorunludur."), { code: "INVALID_CARD_HOLDER" });
     if (digits.length !== 16) throw Object.assign(new Error("Kart numarası 16 haneli olmalıdır."), { code: "INVALID_CARD_NUMBER" });
     const expiry = String(card.cardExpiry || "").split("/");
@@ -936,7 +1009,7 @@ exports.initiateVpos = functions.region("europe-west1").https.onRequest(async (r
     if ((cvv.length !== 3 && cvv.length !== 4) || !cvv.split("").every((digit) => digit >= "0" && digit <= "9")) throw Object.assign(new Error("CVV 3 veya 4 haneli olmalıdır."), { code: "INVALID_CARD_CVV" });
     if (!scenario) throw Object.assign(new Error("Sandbox ortamında yalnızca test kartları kabul edilir."), { code: "SANDBOX_CARD_NOT_ALLOWED" });
     const maskedCard = `${digits.slice(0, 4)} **** **** ${digits.slice(-4)}`;
-    await db.collection("payment_transactions").doc(merchantOid).create({ merchant_oid: merchantOid, order_id: orderId, user_id: userId, amount, scenario: scenario.scenario, masked_card: maskedCard, provider, status: "PENDING_3DS", expires_at: Date.now() + 600000, consumed: false });
+    await db.collection("payment_transactions").doc(merchantOid).create({ merchant_oid: merchantOid, order_id: orderId, user_id: userId, amount, package_items: packageItems, scenario: scenario.scenario, masked_card: maskedCard, provider, status: "PENDING_3DS", expires_at: Date.now() + 600000, consumed: false });
     await logPayment({ merchant_oid: merchantOid, stage: "INITIATE", provider, user_id: userId, request, response_status: "SUCCESS", response_code: null, response_message: "3D Secure doğrulaması bekleniyor", ip_address: requestIp(req) });
     return res.json({ status: "success", merchant_oid: merchantOid, order_id: orderId, user_id: userId, requires_3ds: true, masked_card: maskedCard, provider });
   } catch (error) {
@@ -947,12 +1020,17 @@ exports.initiateVpos = functions.region("europe-west1").https.onRequest(async (r
   }
 });
 
-exports.vposCallback = functions.region("europe-west1").https.onRequest(async (req, res) => {
+exports.vposCallback = functions.runWith({ secrets: ["MEMBER_JWT_SECRET", "ADMIN_JWT_SECRET"] }).region("europe-west1").https.onRequest(async (req, res) => {
   if (req.method !== "POST") return res.status(405).json({ status: "error", message: "Yalnızca POST kabul edilir." });
   if (!sandboxPaymentsEnabled()) return res.status(503).json({ status: "error", message: "Sandbox 3DS bu ortamda kapalıdır." });
   const body = req.body || {};
   const merchantOid = String(body.merchant_oid || "").trim();
   const userId = String(body.user_id || "").trim();
+  const authorization = req.get("authorization") || "";
+  const memberToken = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+  const authorizedUserId = verifySharedDocumentToken(memberToken, "MEMBER", "MEMBER_JWT_SECRET");
+  const authorizedAdmin = verifySharedDocumentToken(memberToken, "ADMIN", "ADMIN_JWT_SECRET");
+  if (!authorizedAdmin && (!authorizedUserId || authorizedUserId !== userId)) return res.status(401).json({ status: "error", message: "Geçerli bayi oturumu gereklidir." });
   if (!merchantOid || !userId) return res.status(400).json({ status: "error", message: "İşlem ve kullanıcı kimliği zorunludur." });
   const provider = process.env.PAYMENT_PROVIDER || "SANDBOX_TEST_POS";
   const paymentRef = db.collection("payment_transactions").doc(merchantOid);
@@ -991,10 +1069,15 @@ exports.vposCallback = functions.region("europe-west1").https.onRequest(async (r
  * 14 günlük cayma süresi dolan komisyonları bölgesel pending_*_usd alanından wallet_*_usd (çekilebilir bakiye) alanına aktarır.
  * Her gece 00:05'te çalışır (Europe/Istanbul saat dilimi).
  */
-exports.recordContractApprovals = functions.region("europe-west1").https.onRequest(async (req, res) => {
+exports.recordContractApprovals = functions.runWith({ secrets: ["MEMBER_JWT_SECRET", "ADMIN_JWT_SECRET"] }).region("europe-west1").https.onRequest(async (req, res) => {
   if (req.method !== "POST") return res.status(405).json({ status: "error", message: "Yalnızca POST kabul edilir." });
   const body = req.body || {};
   const userId = String(body.user_id || "").trim();
+  const authorization = req.get("authorization") || "";
+  const memberToken = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+  const authorizedUserId = verifySharedDocumentToken(memberToken, "MEMBER", "MEMBER_JWT_SECRET");
+  const authorizedAdmin = verifySharedDocumentToken(memberToken, "ADMIN", "ADMIN_JWT_SECRET");
+  if (!authorizedAdmin && (!authorizedUserId || authorizedUserId !== userId)) return res.status(401).json({ status: "error", message: "Sözleşme onayı için geçerli bayi oturumu gereklidir." });
   const orderId = String(body.order_id || "").trim();
   const contracts = Array.isArray(body.contracts) ? body.contracts : [];
   const allowed = new Set(["DISTANCE_SALES", "PRE_INFORMATION", "MLM_TERMS", "KVKK"]);

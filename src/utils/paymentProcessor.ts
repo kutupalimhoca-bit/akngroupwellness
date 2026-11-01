@@ -1,3 +1,6 @@
+import { getMemberWalletToken } from './authManager';
+import { getAdminToken } from './adminSession';
+
 export interface CreditCardDetails {
   cardHolder: string;
   cardNumber: string;
@@ -49,14 +52,39 @@ function request3dsSmsCode(
   });
 }
 
-async function postJson(url: string, body: unknown): Promise<{ ok: boolean; data: any }> {
+async function postJson(url: string, body: unknown, token: string): Promise<{ ok: boolean; data: any }> {
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
   return { ok: res.ok, data };
+}
+
+export async function recordPaidOrderCommission(params: {
+  userId: string;
+  orderId: string;
+  amount: number;
+  packageItems: PosPackageItem[];
+  payment: PosChargeResult;
+}): Promise<void> {
+  const token = getMemberWalletToken() || getAdminToken();
+  if (!token) throw new Error('Güvenli oturum yok; yeniden giriş yapın.');
+  const { ok, data } = await postJson('/api/v1/integrations/order-commission', {
+    user_id: params.userId,
+    order_id: params.orderId,
+    order_amount: params.amount,
+    package_id: params.packageItems[0]?.package_id,
+    package_items: params.packageItems,
+    order_type: 'STANDARD_ORDER',
+    payment_method: 'CREDIT_CARD_3D',
+    merchant_oid: params.payment.merchant_oid,
+    transaction_id: params.payment.transaction_id,
+  }, token);
+  if (!ok || (!data.success && data.status !== 'ALREADY_PROCESSED' && data.status !== 'ALREADY_RECEIVED')) {
+    throw new Error(data.message || data.error || 'Ödeme alındı ancak sipariş ve komisyon kaydı tamamlanamadı.');
+  }
 }
 
 export type ContractType =
@@ -91,8 +119,12 @@ export async function fetchRegionalPackagePrices(
   userId: string,
   packageIds: string[]
 ): Promise<Record<string, number>> {
+  const token = getMemberWalletToken() || getAdminToken();
+  if (!token) throw new Error('Güvenli oturum yok; yeniden giriş yapın.');
   const params = new URLSearchParams({ user_id: userId, package_ids: packageIds.join(',') });
-  const res = await fetch(`/api/v1/payments/regional-prices?${params.toString()}`);
+  const res = await fetch(`/api/v1/payments/regional-prices?${params.toString()}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || data.status !== 'success') {
     throw new Error(data.message || 'Paket fiyatları sunucudan alınamadı.');
@@ -122,13 +154,15 @@ export class PaymentProcessor {
       throw new Error('CVV güvenlik kodu en az 3 haneli olmalıdır.');
     }
 
+    const token = getMemberWalletToken() || getAdminToken();
+    if (!token) throw new Error('Güvenli oturum yok; yeniden giriş yapın.');
     const init = await postJson('/api/v1/payments/vpos/initiate', {
       user_id: userId,
       order_id: orderId,
       package_items: packageItems,
       amount,
       card_details: cardDetails,
-    });
+    }, token);
     if (!init.ok || init.data.status !== 'success') {
       throw new Error(init.data.message || 'Sanal POS ödemesi başlatılamadı.');
     }
@@ -147,7 +181,7 @@ export class PaymentProcessor {
         merchant_oid: merchantOid,
         user_id: userId,
         sms_code: smsCode,
-      });
+      }, token);
       if (callback.ok && callback.data.status === 'success') {
         if (
           callback.data.merchant_oid !== merchantOid ||
@@ -248,9 +282,11 @@ export async function recordUserContractApprovals(params: {
   ];
 
   try {
+    const token = getMemberWalletToken() || getAdminToken();
+    if (!token) return [];
     const res = await fetch('/api/v1/compliance/contract-approvals', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         user_id: params.user_id,
         user_name: params.user_name,

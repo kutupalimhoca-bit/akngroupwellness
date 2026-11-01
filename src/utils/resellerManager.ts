@@ -15,7 +15,7 @@ import {
   Unsubscribe 
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { UserMember, MemberOrder } from './authManager';
+import { getMemberWalletToken, UserMember, MemberOrder } from './authManager';
 
 export interface BankInfo {
   bankName: string;
@@ -1354,12 +1354,11 @@ async function pushCreditBalanceToServer(reseller: Reseller, balance: number): P
   try {
     const res = await fetch(`/api/v1/members/${encodeURIComponent(reseller.uid)}/sync-credits`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        session_credits: balance,
-        email: reseller.email,
-        ref_code: reseller.referralCode,
-      }),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${getMemberWalletToken() || ''}`,
+      },
+      body: JSON.stringify({ session_credits: balance }),
     });
     if (res.status === 404) return;
     if (!res.ok) throw new Error(`sync-credits ${res.status}`);
@@ -3189,7 +3188,7 @@ export async function recordCommissionForOrder(
   user: UserMember
 ): Promise<CommissionTransaction | null> {
   try {
-    if (!order || order.amount <= 0 || order.paymentStatus === 'DEMO') {
+    if (!order || order.amount <= 0 || order.paymentStatus !== 'PAID') {
       return null;
     }
 

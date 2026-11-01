@@ -1,18 +1,23 @@
 ```
 === AKN GLOBAL GROUP E2E TEST SONUÇLARI ===
+[✓] State uç noktası oturumsuz erişimi reddeder — HTTP 401
 [✓] Test Kullanıcıları ve Hiyerarşi Oluşturuldu — B→A, C→B zinciri; C ülke=US, B ülke=TR
 [✓] Bölgesel cüzdan alanları kayıtta tanımlı — A dom=0, intl=0; D dom=0, intl=0
 [✓] 14 gerçek paket ve katalog uç değerleri — 14 paket; Mini $101, Enterprise Mega $6031
+[✓] Kayıt endpointi vergi/kariyer/kredi ayrıcalıklarını istemciden kabul etmez — vergi=false, kariyer=null, kredi=64, sipariş=null
 [✓] Yedi kişilik zincir ciroya rağmen direkt bayi şartı olmadan kariyer atlamaz — T1=1, T2=1; 3. kariyer için 20, 4. kariyer için 50 aktif direkt gerekir
-[✓] Yedi test bayisi paket, sponsor zinciri, bölge fiyatı ve seans kredileriyle kaydedildi — T1 TR/PKG_ALTIN_PRO $603 · 270 kredi | T2 TR/PKG_MINI_DENEME $101 · 64 kredi | T3 US/PKG_BRONZ_BASLANGIC $603 · 70 kredi | T4 TR/PKG_GUMUS_STANDART $302 · 115 kredi | T5 DE/PKG_ALTIN_DANISMAN $1509 · 215 kredi | T6 TR/PKG_ALTIN_PRO $603 · 270 kredi | T7 TR/PKG_MINI_DENEME $101 · 64 kredi
+[✓] Yedi test bayisi paket, sponsor zinciri, bölge fiyatı ve seans kredileriyle kaydedildi — T1 TR/PKG_ALTIN_PRO $603 · 270 kredi | T2 TR/PKG_MINI_DENEME $101 · 32 kredi | T3 US/PKG_BRONZ_BASLANGIC $603 · 70 kredi | T4 TR/PKG_GUMUS_STANDART $302 · 115 kredi | T5 DE/PKG_ALTIN_DANISMAN $1509 · 215 kredi | T6 TR/PKG_ALTIN_PRO $603 · 270 kredi | T7 TR/PKG_MINI_DENEME $101 · 32 kredi
 [✓] Üst altı test bayisinin kariyer hak edişleri test override ile açıldı — T1=7, T2=6, T3=5, T4=4, T5=3, T6=2
 [✓] Bayi 7 siparişi altı üst bayiye dağıtılır ve havuz bütçesi dengededir — HTTP 201; derinlik 1–6=T6→T1, 7=TRANSFERRED_TO_POOL_NO_UPLINE; baz=$50.50/$50.50; sistem fonu Δ=$5.05; havuz devri Δ=$2.02
 [✓] Primler hak sahiplerinin cüzdan ve 14 günlük bekleyen bakiyelerine işlendi — hak ediş toplamı=$57.08; kayıtlı prim=$57.08; yurtiçi bekleyen USD dönüşümü=true; durum=PENDING_14D
 [✓] T1 ve T2 kariyer ödülleri ve panel ağaç verisi senkron — T1=7. kariyer, T2=6. kariyer; ödüller=2,3,4,5,6,7; sponsor ağacı=1→1→1→1→1→1
-[✓] Yurt dışı ilk kayıt 3x fiyat ve sabit paket kredisi — HTTP 201; ilk sipariş=$603, sipariş kredisi=70, bayi bakiyesi=70
+[✓] Yurt dışı ilk kayıt yalnızca 3D Secure ödeme sonrası 3x paket tutarıyla işlenir — kayıt HTTP 201, sipariş HTTP 200; tutar=$603, kredi=70
 [✓] Bölgesel Cüzdan Yüklemeleri Başarılı — B dom=500, C intl=1000, D dom=50 (restore HTTP 200)
-[✓] Yurtiçi ($100) Aktiflik Mevcut Süreye Eklenir (+30 gün) — HTTP 200; dom Δ=-100.00; expiry Δ=30.00 gün; kredi Δ=0; exp 2026-11-29T23:01:53.892Z → 2026-12-29T23:01:53.892Z
-[✓] Uluslararası ($300) Aktiflik Mevcut Süreye Eklenir (+30 gün) — HTTP 200; intl Δ=-300.00; expiry Δ=30.00 gün; kredi Δ=0; exp 2026-11-29T23:01:53.926Z → 2026-12-29T23:01:53.926Z
+[✓] State yanıtı 2FA sırlarını ve alt üye kişisel verilerini gizler — HTTP 200; 2FA ve alt üye kişisel alanları gizli
+[✓] Paket fiyatları oturum ve hesap kapsamı ister; yapılandırılmamış TOTP etkinleştirilemez — anonim fiyat=401, başka kullanıcı fiyatı=403, TOTP=501
+[✓] Bayi kendi seans kredisi bakiyesini API ile artıramaz — HTTP 403
+[✓] Yurtiçi ($100) Aktiflik Mevcut Süreye Eklenir (+30 gün) — HTTP 200; dom Δ=-100.00; expiry Δ=30.00 gün; kredi Δ=0; exp 2026-12-01T15:46:41.278Z → 2026-12-31T15:46:41.278Z
+[✓] Uluslararası ($300) Aktiflik Mevcut Süreye Eklenir (+30 gün) — HTTP 200; intl Δ=-300.00; expiry Δ=30.00 gün; kredi Δ=0; exp 2026-12-01T15:46:41.313Z → 2026-12-31T15:46:41.313Z
 [✓] Yetersiz Bakiye 422 Hatası Doğrulandı — HTTP 422, code=INSUFFICIENT_WALLET_BALANCE; bakiye korundu=50
 [✓] Sponsor Komisyon ve Sayaç Simetrisi (B: derinlik 1 ödenir; A: derinlik 2 kilitli) — C aktifliği sonrası: B kazanç Δ=81.00, A kazanç Δ=0.00 (A seviye 1: yalnızca derinlik 1 açık); sayaç Δ B=81.00, A=0.00. 7 derinlik testi ayrı adımda
 [✓] Kariyer Hesaplama Ucu Yetkisiz Erişimi Engellendi — HTTP 401, code=ADMIN_AUTH_REQUIRED
@@ -20,8 +25,10 @@
 [✓] 7. kariyere geçişte 2–7 kariyer ödülleri tek kez oluştu — seviyeler=2,3,4,5,6,7; ödül toplamı=$215500
 [✓] Baz dağıtım bütçesi %5 fon + %20 sponsor + %25 monoline = %50 — HTTP 200; baz dağıtım=$50.00/$50.00, derinlik=%25, sponsor=%20, fon=$5; ek sonsuzluk=$10, eşleşme=$2.7; durum=PENDING_14D
 [✓] Vadesi dolmayan komisyon erken serbest bırakılamaz — HTTP 200, serbest bırakılan=0
+[✓] Bekleyen bakiye yetersizse komisyon serbest bırakılmaz veya cüzdan artırılmaz — HTTP 200, serbest=0, log=PENDING_14D
 [✓] P2P Bayiler Arası Transfer Başarılı — HTTP 200; gönderen Δ=-100.00, alıcı Δ=100.00; kayıt=true (tutar 100)
 [✓] P2P Transferi activityLogs'a Yazıldı — gönderen log=true, alıcı log=true
+[✓] P2P geçersiz tür ve oturumsuz istekleri reddeder — geçersiz tür HTTP 400, oturumsuz HTTP 401
 [✓] Yetkisiz Süre Uzatma (403 Admin Only) Engeli Doğrulandı — HTTP 403, code=ADMIN_ONLY_ACTION
 [✓] Kariyer eşiği — L2: 10 aktif direkt, toplam ciro 2000 — hedef seviye=2 (beklenen 2)
 [✓] Kariyer eşiği — L2 reddi: 9 aktif direkt, ciro 2700 — hedef seviye=1 (beklenen 1)
@@ -56,6 +63,12 @@
 [✓] Yönetici onayı yetkisiz erişime kapalı, yetkili onay kaydı APPROVED yapar — yetkisiz HTTP 401, yetkili HTTP 200
 [✓] Süresi dolmuş bayinin çekimi reddedildi (ana rota ve alias 403) — ana rota HTTP 403, alias HTTP 403, code=WITHDRAWAL_CONDITION_NOT_MET; bakiye korundu=true
 [✓] Aktif süre varken ikinci alım aylık sınır olmadan kalan süreye +30 gün ekler — HTTP 200; expiry Δ=30.00 gün; dom Δ=-100.00
+[✓] Yinelenen sipariş gönderimi cüzdanı ve komisyon loglarını değiştirmez — ilk sipariş log=12; tekrar HTTP 200, code=IDEMPOTENCY_DUPLICATE_ORDER_ID; cüzdan değişmedi=true; log sonrası=12
+[✓] Kariyer havuzu aynı dönemde ikinci kez dağıtılmaz ve atlanan krediler denetlenir — ilk dağıtım=46.49; ikinci dağıtım=0; atlanan kayıt=54; cüzdanlar değişmedi=true
+[✓] Manuel bireysel kariyer ödemesi batch_id ile tekrar edilemez — batch_id yok=400/BATCH_ID_REQUIRED; ilk=200; tekrar=409/BATCH_ALREADY_PAID; bakiye Δ=1.00; tekrar sonrası değişmedi=true
+[✓] Tier kariyer ödemesinde tüm adaylar ödenmişse ALL_ELIGIBLE_ALREADY_PAID döner — ilk=200; tekrar=409/ALL_ELIGIBLE_ALREADY_PAID; cüzdanlar değişmedi=true
+[✓] Dinamik havuz REV1 revizyonu ayrı dönemde bir kez dağıtılır — geçersiz=400/INVALID_REVISION; REV1 ilk=1.85; REV1 tekrar=0; atlanan=30
+[✓] Ödül teslimi cüzdana bir kez işlenir, tekrar teslim REWARD_ALREADY_DELIVERED döner — teslim edilecek ödül=true; ilk=200; tekrar=409/REWARD_ALREADY_DELIVERED; cüzdan değişmedi=true
 
 TÜM TESTLER BAŞARIYLA TAMAMLANDI.
 ```

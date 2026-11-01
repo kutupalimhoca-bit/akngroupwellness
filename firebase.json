@@ -15,20 +15,39 @@
     ],
     "rewrites": [
       {
+        "source": "/api/v1/payments/regional-prices",
+        "function": {
+          "functionId": "regionalPackagePrices",
+          "region": "europe-west1"
+        }
+      },
+      {
         "source": "/api/v1/payments/vpos/initiate",
-        "function": "initiateVpos"
+        "function": {
+          "functionId": "initiateVpos",
+          "region": "europe-west1"
+        }
       },
       {
         "source": "/api/v1/payments/vpos/callback",
-        "function": "vposCallback"
+        "function": {
+          "functionId": "vposCallback",
+          "region": "europe-west1"
+        }
       },
       {
         "source": "/api/v1/compliance/contract-approvals",
-        "function": "recordContractApprovals"
+        "function": {
+          "functionId": "recordContractApprovals",
+          "region": "europe-west1"
+        }
       },
       {
         "source": "/api/v1/integrations/order-commission",
-        "function": "handleOrderCommission"
+        "function": {
+          "functionId": "handleOrderCommission",
+          "region": "europe-west1"
+        }
       },
       {
         "source": "/api/v1/documents",

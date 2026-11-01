@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { DealerPackage } from './resellerManager';
-import { BANK_INFO } from './authManager';
+import { BANK_INFO, getMemberWalletToken } from './authManager';
 
 export interface DealerPackageOrder {
   id: string;
@@ -178,9 +178,11 @@ export async function requestDealerPackagePurchase(
 
     let activityExtended = false;
     if (isInstantPayment && paymentConfirmation) {
+      const token = getMemberWalletToken();
+      if (!token) return { success: false, message: 'Güvenli bayi oturumu yok; yeniden giriş yapın.' };
       const whRes = await fetch('/api/v1/integrations/order-commission', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           user_id: resellerId,
           reseller_name: resellerName,
@@ -188,6 +190,7 @@ export async function requestDealerPackagePurchase(
           order_id: orderId,
           order_amount: pkg.price,
           package_id: pkg.id,
+          package_items: [{ package_id: pkg.id, quantity: 1 }],
           payment_method: 'CREDIT_CARD_3D',
           merchant_oid: paymentConfirmation.merchant_oid,
           transaction_id: paymentConfirmation.transaction_id,

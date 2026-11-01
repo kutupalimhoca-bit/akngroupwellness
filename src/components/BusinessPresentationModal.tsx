@@ -261,7 +261,7 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                   Resmi İş Sunum Raporu &amp; Dijital Tanıtım Kataloğu
                 </span>
                 <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-bold text-[10px] border border-amber-500/40">
-                  15 Kredi Paketi · Monoline 7 Nefis MLM
+                  14 Kredi Paketi · Monoline 7 Nefis MLM
                 </span>
                 {activeReferralCode && (
                   <span className="px-2 py-0.5 rounded-md bg-emerald-950 text-emerald-300 font-mono text-[10px] font-bold border border-emerald-500/40 flex items-center gap-1">
@@ -271,7 +271,7 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                 )}
               </div>
               <h2 className="text-base sm:text-lg font-black text-slate-100 mt-1">
-                Kuantum Biyo-Rezonans, 16 Bütüncül Teknoloji, 15 Bayi Paketi &amp; Monoline 7 Nefis MLM Kataloğu
+                Kuantum Biyo-Rezonans, 16 Bütüncül Teknoloji, 14 Bayi Paketi &amp; Monoline 7 Nefis MLM Kataloğu
               </h2>
             </div>
           </div>
@@ -492,10 +492,10 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                   <span>Kuantum Biyo-Rezonans, Optik Spektrometre &amp; Akustik Titreşim Mimarisi (v6.0)</span>
                 </div>
                 <h3 className="text-xl sm:text-2xl font-black text-white leading-tight">
-                  İnsan Enerji Alanlarını Optik, Vokal ve Biyometrik Olarak Tarayan, Dengeleyen ve 8 Sekmeli Raporlayan Tam Donanımlı Klinik Ekosistem
+                  İnsan Enerji Alanlarını Optik, Vokal ve Biyometrik Olarak Tarayan, Dengeleyen ve Raporlayan Tam Donanımlı Klinik Ekosistem
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-4xl">
-                  AuraBio Frekans; web kamerası üzerinden canlı foton/PPG analizi, mikrofon üzerinden <strong>10s Öncesi/Sonrası Vokal Biyo-Akustik Spektrometre</strong> ve <strong>Web BLE Akıllı Saat Nabız/HRV Canlı Köprüsü</strong> ile danışanın biyolojik ve enerjetik durumunu ölçer. <strong>302+ Kadim Şifa Frekansı</strong>, <strong>50+ Hastalık Şifa Ansiklopedisi</strong>, <strong>MindSpace Nöro-Akustik Stüdyosu</strong>, <strong>Dinamik Kutsal Geometri Mandala</strong> ve <strong>8 Sekmeli Öncesi/Sonrası Klinik Raporlama</strong> ile danışanlarınıza eşsiz bir deneyim yaşatır.
+                  AuraBio Frekans; web kamerası üzerinden canlı foton/PPG analizi, mikrofon üzerinden <strong>10s Öncesi/Sonrası Vokal Biyo-Akustik Spektrometre</strong> ve <strong>Web BLE Akıllı Saat Nabız/HRV Canlı Köprüsü</strong> ile danışanın biyolojik ve enerjetik durumunu ölçer. <strong>302+ Kadim Şifa Frekansı</strong>, <strong>50+ Hastalık Şifa Ansiklopedisi</strong>, <strong>MindSpace Nöro-Akustik Stüdyosu</strong>, <strong>Dinamik Kutsal Geometri Mandala</strong> ve <strong>Öncesi/Sonrası Klinik Raporlama</strong> ile danışanlarınıza eşsiz bir deneyim yaşatır.
                 </p>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 text-center text-xs">
@@ -512,8 +512,8 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                     <div className="text-[10px] text-slate-400">Rezonans Ansiklopedisi</div>
                   </div>
                   <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800">
-                    <div className="text-purple-400 font-mono font-black text-lg">8 Sekmeli</div>
-                    <div className="text-[10px] text-slate-400">Ön/Son Klinik Rapor</div>
+                    <div className="text-purple-400 font-mono font-black text-lg">PDF &amp; Word</div>
+                    <div className="text-[10px] text-slate-400">Klinik Rapor Dışa Aktarımı</div>
                   </div>
                 </div>
               </div>
@@ -744,10 +744,10 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                         <div className="p-2 rounded-xl bg-amber-500/20 border border-amber-500/40">
                           <FileText className="w-4 h-4" />
                         </div>
-                        <span>16. 8 Sekmeli Klinik Öncesi/Sonrası Rapor &amp; Dünya Haritası</span>
+                        <span>16. Klinik Öncesi/Sonrası Rapor &amp; Dünya Haritası</span>
                       </div>
                       <p className="text-xs text-slate-400 leading-relaxed">
-                        İlim Kapı, Çakralar, Letaifler, Aura Katmanları, Vokal Frekans ve Organ Rezonansını içeren 8 sekmeli kapsamlı klinik raporu tek tıkla resmi PDF ve Word olarak hazırlar; Küresel Şifa Isı Haritası ile canlı frekans akışını gösterir.
+                        İlim Kapı, Çakralar, Letaifler, Aura Katmanları, Vokal Frekans ve Organ Rezonansını içeren kapsamlı klinik raporu tek tıkla resmi PDF ve Word olarak hazırlar; Küresel Şifa Isı Haritası ile canlı frekans akışını gösterir.
                       </p>
                     </div>
                   </div>
@@ -773,7 +773,7 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                     onClick={() => setActiveSection('packages')}
                     className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer border border-slate-700"
                   >
-                    15 Bayi Paketini İncele
+                    14 Bayi Paketini İncele
                   </button>
                 </div>
               </div>
@@ -1022,11 +1022,21 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                   <span>Uygulama, Seans &amp; Back-Office İşleyiş Yol Haritası</span>
                 </div>
                 <h3 className="text-xl sm:text-2xl font-black text-white leading-tight">
-                  Kayıttan Danışan Raporlamasına ve Monoline Komisyon Çekimine 6 Kolay Adım
+                  Kayıttan Komisyon Çekimine Kadar 6 Adımda Kullanım Rehberi
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                  AuraBio Frekans sistemini kullanmak, danışanlarınıza klinik ve holistik seanslar uygulamak ve Bayi Back-Office üzerinden kazançlarınızı yönetmek tamamen otomatize edilmiş adımlardan oluşur.
+                  AuraBio Frekans sistemini kullanmak; danışanlarınıza seans uygulamak ve Bayi Back-Office üzerinden kazançlarınızı takip etmek için bu sırayı izleyin. Tüm finansal değerler USD standardındadır.
                 </p>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-amber-950/20 border border-amber-500/30 space-y-3">
+                <h4 className="text-sm font-bold text-amber-300">Başlamadan Önce Bilmeniz Gerekenler</h4>
+                <ul className="text-xs text-slate-300 leading-relaxed list-disc pl-5 space-y-1.5">
+                  <li><strong>Para birimi:</strong> Bakiyeler, komisyonlar ve raporlar USD olarak tutulur. TRY karşılıkları yalnızca bilgilendirme amaçlıdır.</li>
+                  <li><strong>Ödeme yöntemi:</strong> Paket satın alımları yalnızca 3D Secure Sanal POS ile kredi veya banka kartıyla yapılır; havale/EFT, şahsi IBAN ve kripto ödeme kabul edilmez.</li>
+                  <li><strong>Cayma koruması:</strong> Yasal cayma süresi 14 gündür. İade gerçekleşirse ilgili bekleyen komisyonlar geri alınır.</li>
+                  <li><strong>Kariyer havuzu:</strong> Sistem fonu payı ayda bir dönem halinde dağıtılır; düzeltmeler ayrı bir revizyon kaydı olarak işlenir.</li>
+                </ul>
               </div>
 
               {/* Step by Step Timeline */}
@@ -1039,7 +1049,7 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                   <div className="space-y-1">
                     <h4 className="text-sm font-bold text-slate-100">Referans Kodu İle Kaydolun &amp; Küresel Tek Hatta (Monoline) Yerleşin</h4>
                     <p className="text-xs text-slate-400 leading-relaxed">
-                      Sponsor bayinizin referans linki ile kaydolarak hesabınızı açın. Kayıt anında küresel tek hatta (Global Single Line) kronolojik sıranız otomatik tanımlanır ve sizden sonra katılan herkes alt sıranıza dökülür (spillover).
+                      Sponsor bayinizin referans kodu veya linki ile kayıt olun. Hesabınız küresel tek hatta (Global Single Line) kayıt sırasına göre yerleşir; sonradan katılanlar sıranızın altına eklenir (spillover). İlk bayi kaydınızda bir defaya mahsus 64 seans kredisi (32 + 32) hoş geldin bonusu tanımlanır.
                     </p>
                   </div>
                 </div>
@@ -1049,9 +1059,9 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                     2
                   </div>
                   <div className="space-y-1">
-                    <h4 className="text-sm font-bold text-slate-100">14 Resmi Paketten Seçim Yapın &amp; Seans Kredisi Yükleyin</h4>
+                    <h4 className="text-sm font-bold text-slate-100">14 Resmi Paketten Birini Seçin &amp; Kredi Satın Alın</h4>
                     <p className="text-xs text-slate-400 leading-relaxed">
-                      Bayi Back-Office içerisindeki <strong>14 Resmi Alışveriş Paketi</strong> sekmesinden 32 krediden 5.000 krediye kadar bütçenize uygun paketi seçin. BDDK uyumlu 3D Secure Sanal POS, Havale/EFT veya Kripto (USDT TRC-20) ile ödemenizi tamamlayın; krediniz anında havuzunuza aktarılır.
+                      Bayi Back-Office içerisindeki <strong>14 Resmi Paket</strong> sekmesinden 32 krediden 5.000 krediye kadar bütçenize uygun paketi seçin. Ödemeniz 3D Secure Sanal POS üzerinden kredi veya banka kartıyla tamamlanır; onaylanan kredi hesabınıza tanımlanır. Satın almadan önce ön bilgilendirme, mesafeli satış sözleşmesi, KVKK aydınlatma metni ve bayilik sözleşmesi onaylanır.
                     </p>
                   </div>
                 </div>
@@ -1075,7 +1085,7 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                   <div className="space-y-1">
                     <h4 className="text-sm font-bold text-slate-100">302+ Kadim Şifa veya 50+ Hastalık Protokolünü Uygulayın</h4>
                     <p className="text-xs text-slate-400 leading-relaxed">
-                      Biyometrik analiz sonucuna göre sistemin önerdiği Esma-ül Hüsna, Solfejyo, Sufi Makamı veya Şifa Ansiklopedisi protokolünü başlatın. Seans tamamlandığında kredi havuzunuzdan otomatik olarak 1 seans kredisi düşülür.
+                      Biyometrik analiz sonucunda sistemin önerdiği Esma-ül Hüsna, Solfejyo, Sufi Makamı veya Şifa Ansiklopedisi protokolünü başlatın. Seans tamamlandığında ilgili seans kredisi paket bakiyenizden otomatik olarak düşülür.
                     </p>
                   </div>
                 </div>
@@ -1085,9 +1095,9 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                     5
                   </div>
                   <div className="space-y-1">
-                    <h4 className="text-sm font-bold text-slate-100">8 Sekmeli Öncesi/Sonrası Raporu PDF ve Word Olarak Teslim Edin</h4>
+                    <h4 className="text-sm font-bold text-slate-100">Öncesi/Sonrası Raporu PDF ve Word Olarak Teslim Edin</h4>
                     <p className="text-xs text-slate-400 leading-relaxed">
-                      Seans öncesi ve sonrasındaki hücresel titreşim artışını gösteren 8 sekmeli karşılaştırmalı klinik raporu tek tıkla PDF veya Word (.doc) olarak indirin; danışanınıza WhatsApp veya e-posta üzerinden iletin.
+                      Seans öncesi ve sonrası karşılaştırmalı raporu tek tıkla PDF veya Word (.doc) olarak indirin ve danışanınıza WhatsApp veya e-posta ile iletin.
                     </p>
                   </div>
                 </div>
@@ -1099,7 +1109,7 @@ export const BusinessPresentationModal: React.FC<BusinessPresentationModalProps>
                   <div className="space-y-1">
                     <h4 className="text-sm font-bold text-slate-100">Bayi Back-Office'ten Monoline Ağacınızı ve Cüzdanınızı Yönetin</h4>
                     <p className="text-xs text-slate-400 leading-relaxed">
-                      Bayi Back-Office ekranında küresel tek hat ağacınızı, alt ekip siparişlerinizi ve cüzdan hareketlerinizi izleyin; biriken %20 Direkt Sponsor, %25 Monoline ve %5 Sistem / Kariyer Fonu gelirlerinizi resmi TR IBAN hesabınıza nakit olarak çekin.
+                      Back-Office'te tek hat ağacınızı, komisyon hareketlerinizi ve cüzdan bakiyelerinizi izleyin. Kazançlar kalemlere göre ayrılır: %20 Direkt Sponsor primi (14 gün cayma korumalı bekleyen bakiyeye eklenir), %25 Monoline derinlik primi (7 derinlik: %7, %5, %4, %3, %2, %2, %2), %5 Sistem / Kariyer Fonu payı ve seviyenize bağlı ek primler. İlk 30 günde 3 aktif direkt referans sağlarsanız Fast-ROI bonusu tanımlanır. Çekimler yalnızca kendi adınıza kayıtlı hesaba yapılır; minimum çekim tutarı 50 USD'dir. Yurt içi üyeler TR IBAN'a, yurt dışı üyeler geçerli IBAN ile SWIFT veya SEPA kanalına çekim talep eder. Çekimlerde %20 stopaj uygulanır; fatura yüklenip onaylanırsa bu tutar iade edilir. Günlük çekim limiti kariyer seviyenize göre belirlenir.
                     </p>
                   </div>
                 </div>

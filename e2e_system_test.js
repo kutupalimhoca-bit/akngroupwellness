@@ -55,6 +55,78 @@ async function snapshot() {
 
 const find = (data, userId) => data.members.find((m) => m.user_id === userId);
 
+let nextTestIp = 30;
+
+async function setTestMemberIp(userId, ip) {
+  const data = await snapshot();
+  const member = find(data, userId);
+  if (!member) throw new Error(`Test üyesi bulunamadı: ${userId}`);
+  member.last_login_ip = ip;
+  const restored = await api('POST', '/api/v1/admin/restore-data', {
+    body: { data },
+    token: adminToken,
+  });
+  if (restored.status !== 200) throw new Error(`Test IP verisi kaydedilemedi: ${userId}`);
+}
+
+async function completePaidOrder({ userId, fullName, email, packageId, countryCode }) {
+  const pkg = FREKANS_PACKAGES.find((candidate) => candidate.id === packageId);
+  const orderId = `ORD-E2E-${stamp}-${userId}`;
+  const clientIp = `198.51.100.${nextTestIp++}`;
+  const amount = pkg.defaultPrice * (countryCode === 'TR' ? 1 : 3);
+  const packageItems = [{ package_id: packageId, quantity: 1 }];
+  const contracts = await api('POST', '/api/v1/compliance/contract-approvals', {
+    token: adminToken,
+    body: {
+      user_id: userId,
+      user_name: fullName,
+      order_id: orderId,
+      order_amount: amount,
+      product_summary: pkg.name,
+      contracts: ['PRE_INFORMATION', 'DISTANCE_SALES', 'KVKK', 'MLM_TERMS'],
+    },
+  });
+  if (contracts.status !== 201) throw new Error(`Sözleşme kaydı başarısız: ${contracts.status}`);
+  await setTestMemberIp(userId, clientIp);
+
+  const initiate = await api('POST', '/api/v1/payments/vpos/initiate', {
+    token: adminToken,
+    body: {
+      user_id: userId,
+      order_id: orderId,
+      package_items: packageItems,
+      amount,
+      card_details: {
+        cardHolder: fullName,
+        cardNumber: '4543 4500 0000 0001',
+        cardExpiry: '12/28',
+        cardCvv: '123',
+      },
+    },
+  });
+  if (initiate.status !== 200) throw new Error(`Ödeme başlatılamadı: ${initiate.status}`);
+
+  const callback = await api('POST', '/api/v1/payments/vpos/callback', {
+    token: adminToken,
+    body: { merchant_oid: initiate.json.merchant_oid, user_id: userId, sms_code: '123456' },
+  });
+  if (callback.status !== 200) throw new Error(`3D Secure başarısız: ${callback.status}`);
+
+  return api('POST', '/api/v1/integrations/order-commission', {
+    token: adminToken,
+    body: {
+      user_id: userId,
+      order_id: orderId,
+      order_amount: amount,
+      package_id: packageId,
+      package_items: packageItems,
+      payment_method: 'CREDIT_CARD_3D',
+      merchant_oid: callback.json.merchant_oid,
+      transaction_id: callback.json.transaction_id,
+    },
+  });
+}
+
 async function waitForHealth(timeoutMs = 90000) {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
@@ -109,6 +181,8 @@ async function main() {
       body: { email: 'psikologabdulkadirkan@gmail.com', password: adminPassword },
     });
     adminToken = adminLogin.json?.token || null;
+    const publicState = await api('GET', '/api/v1/state');
+    record('State uç noktası oturumsuz erişimi reddeder', publicState.status === 401, `HTTP ${publicState.status}`);
     if (!adminToken) {
       console.error('Admin girişi başarısız; export/restore testleri yapılamaz.');
       process.exitCode = 1;
@@ -151,6 +225,12 @@ async function main() {
     for (let i = 2; i <= 8; i++) await create(`U${i}`, 'TR', ids[`U${i - 1}`]);
 
     let data = await snapshot();
+    Object.values(ids).forEach((userId, index) => {
+      const member = find(data, userId);
+      if (member) member.last_login_ip = `198.51.100.${index + 1}`;
+    });
+    await api('POST', '/api/v1/admin/restore-data', { body: { data }, token: adminToken });
+    data = await snapshot();
     const mA = find(data, ids.A);
     const mB = find(data, ids.B);
     const mC = find(data, ids.C);
@@ -193,10 +273,46 @@ async function main() {
           sponsor_id: i === 0 ? '' : sevenDealerIds[i - 1],
           initial_package_id: profile.packageId,
           password: PASSWORD,
+          skip_initial_order: true,
+          ...(i === 0 ? { has_tax_company: true, manual_career_override: 7, session_credits: 9999 } : {}),
         },
       }));
     }
 
+    let sevenDealerRegistrationState = await snapshot();
+    sevenDealerIds.slice(0, 6).forEach((userId, index) => {
+      const member = find(sevenDealerRegistrationState, userId);
+      if (member) member.last_login_ip = `198.51.100.${20 + index}`;
+    });
+    await api('POST', '/api/v1/admin/restore-data', {
+      body: { data: sevenDealerRegistrationState },
+      token: adminToken,
+    });
+
+    const untrustedRegistration = sevenDealerRegistrations[0]?.json;
+    record(
+      'Kayıt endpointi vergi/kariyer/kredi ayrıcalıklarını istemciden kabul etmez',
+      untrustedRegistration?.status === 'success' && untrustedRegistration.transaction === null &&
+        untrustedRegistration.member?.has_tax_company === false &&
+        untrustedRegistration.member?.manual_career_override === null &&
+        untrustedRegistration.member?.session_credits === 64 &&
+        !untrustedRegistration.member?.tc_identity_no &&
+        !untrustedRegistration.member?.two_factor?.secret_key &&
+        untrustedRegistration.member?.two_factor?.backup_codes?.length === 0,
+      `vergi=${untrustedRegistration?.member?.has_tax_company}, kariyer=${untrustedRegistration?.member?.manual_career_override}, kredi=${untrustedRegistration?.member?.session_credits}, sipariş=${untrustedRegistration?.transaction}`
+    );
+
+    const sevenDealerPaidOrders = [];
+    for (let i = 0; i < 6; i++) {
+      const profile = sevenDealerProfiles[i];
+      sevenDealerPaidOrders.push(await completePaidOrder({
+        userId: sevenDealerIds[i],
+        fullName: `E2E Yedi Bayi ${i + 1}`,
+        email: `e2e-7b-t${i + 1}-${stamp}@test.local`,
+        packageId: profile.packageId,
+        countryCode: profile.country,
+      }));
+    }
     let sevenDealerData = await snapshot();
     const sevenMemberCareerCheck = await api('POST', '/api/v1/admin/career/calculate-active', {
       token: adminToken,
@@ -239,22 +355,32 @@ async function main() {
         sponsor_id: sevenDealerIds[5],
         initial_package_id: finalDealerProfile.packageId,
         password: PASSWORD,
+        skip_initial_order: true,
       },
     });
     sevenDealerRegistrations.push(seventhRegistration);
+    const seventhPaidOrder = await completePaidOrder({
+      userId: sevenDealerIds[6],
+      fullName: 'E2E Yedi Bayi 7',
+      email: `e2e-7b-t7-${stamp}@test.local`,
+      packageId: finalDealerProfile.packageId,
+      countryCode: finalDealerProfile.country,
+    });
+    sevenDealerPaidOrders.push(seventhPaidOrder);
 
     sevenDealerData = await snapshot();
     const sevenDealerMembers = sevenDealerIds.map((userId) => find(sevenDealerData, userId));
     const sevenDealerPackageChecks = sevenDealerProfiles.map((profile, i) => {
       const pkg = FREKANS_PACKAGES.find((candidate) => candidate.id === profile.packageId);
       const registration = sevenDealerRegistrations[i];
+      const paidOrder = sevenDealerPaidOrders[i];
       const expectedPrice = pkg?.defaultPrice * (profile.country === 'TR' ? 1 : 3);
-      const expectedCredits = Math.max(pkg?.sessionCredits || 0, 64);
+      const expectedCredits = pkg?.sessionCredits || 0;
       const expectedSponsor = i === 0 ? null : sevenDealerIds[i - 1];
       return registration?.status === 201 && registration.json?.status === 'success' &&
-        near(registration.json?.transaction?.order_amount, expectedPrice) &&
-        registration.json?.transaction?.session_credits_added === expectedCredits &&
-        registration.json?.member?.session_credits === expectedCredits &&
+        paidOrder?.status === 200 && near(paidOrder.json?.transaction?.order_amount, expectedPrice) &&
+        paidOrder.json?.transaction?.session_credits_added === expectedCredits &&
+        sevenDealerMembers[i]?.session_credits === 64 + expectedCredits &&
         sevenDealerMembers[i]?.country_code === profile.country &&
         sevenDealerMembers[i]?.highest_package_id === profile.packageId &&
         sevenDealerMembers[i]?.sponsor_id === expectedSponsor;
@@ -263,7 +389,7 @@ async function main() {
       'Yedi test bayisi paket, sponsor zinciri, bölge fiyatı ve seans kredileriyle kaydedildi',
       sevenDealerPackageChecks.every(Boolean),
       sevenDealerProfiles.map((profile, i) => {
-        const tx = sevenDealerRegistrations[i]?.json?.transaction;
+        const tx = sevenDealerPaidOrders[i]?.json?.transaction;
         return `T${i + 1} ${profile.country}/${profile.packageId} $${tx?.order_amount ?? 'hata'} · ${tx?.session_credits_added ?? 0} kredi`;
       }).join(' | ')
     );
@@ -274,7 +400,7 @@ async function main() {
       sevenDealerMembers.slice(0, 6).map((m, i) => `T${i + 1}=${m?.active_career_level ?? 0}`).join(', ')
     );
 
-    const sevenDealerTransaction = seventhRegistration.json?.transaction;
+    const sevenDealerTransaction = seventhPaidOrder.json?.transaction;
     const sevenDealerPayouts = sevenDealerTransaction?.monoline_upline_payouts || [];
     const expectedSevenDealerUplines = sevenDealerIds.slice(0, 6).reverse();
     const sixDepthsPaid = expectedSevenDealerUplines.every((userId, i) => {
@@ -336,10 +462,18 @@ async function main() {
       (reward) => reward.external_user_id === sevenDealerIds[0] && reward.reward_type === 'RANK_UP_GIFT'
     );
     const rootRewardLevels = sevenDealerRootRewards.map((reward) => reward.career_level).sort((a, b) => a - b);
-    const sevenDealerRootDashboard = await api('GET', `/api/v1/user/dashboard?user_id=${encodeURIComponent(sevenDealerIds[0])}`);
-    const sevenDealerSecondDashboard = await api('GET', `/api/v1/user/dashboard?user_id=${encodeURIComponent(sevenDealerIds[1])}`);
-    const sevenDealerRootTeam = await api('GET', `/api/v1/user/team?user_id=${encodeURIComponent(sevenDealerIds[0])}`);
-    const sevenDealerMonoline = await api('GET', `/api/v1/user/monoline-line?user_id=${encodeURIComponent(sevenDealerIds[0])}`);
+    const sevenDealerRootSession = await api('POST', '/api/v1/member/session', {
+      body: { email: `e2e-7b-t1-${stamp}@test.local`, password: PASSWORD },
+    });
+    const sevenDealerSecondSession = await api('POST', '/api/v1/member/session', {
+      body: { email: `e2e-7b-t2-${stamp}@test.local`, password: PASSWORD },
+    });
+    const sevenDealerRootToken = sevenDealerRootSession.json?.token;
+    const sevenDealerSecondToken = sevenDealerSecondSession.json?.token;
+    const sevenDealerRootDashboard = await api('GET', `/api/v1/user/dashboard?user_id=${encodeURIComponent(sevenDealerIds[0])}`, { token: sevenDealerRootToken });
+    const sevenDealerSecondDashboard = await api('GET', `/api/v1/user/dashboard?user_id=${encodeURIComponent(sevenDealerIds[1])}`, { token: sevenDealerSecondToken });
+    const sevenDealerRootTeam = await api('GET', `/api/v1/user/team?user_id=${encodeURIComponent(sevenDealerIds[0])}`, { token: sevenDealerRootToken });
+    const sevenDealerMonoline = await api('GET', `/api/v1/user/monoline-line?user_id=${encodeURIComponent(sevenDealerIds[0])}`, { token: sevenDealerRootToken });
     const expectedRootRewardLevels = Object.keys(RANK_UP_REWARDS_BY_CAREER).map(Number).sort((a, b) => a - b);
     const rootTreeDepths = sevenDealerRootTeam.json?.data?.unilevel_7_depths || [];
     const rootLineMembers = sevenDealerMonoline.json?.data?.users_behind_next_10 || [];
@@ -356,7 +490,7 @@ async function main() {
     );
 
     const intlFirstOrderId = `E2E-INTL-FIRST-${stamp}`;
-    const intlFirstOrder = await api('POST', '/api/v1/members', {
+    const intlRegistration = await api('POST', '/api/v1/members', {
       body: {
         user_id: intlFirstOrderId,
         full_name: 'E2E Uluslararası İlk Bayi',
@@ -364,13 +498,22 @@ async function main() {
         country_code: 'US',
         initial_package_id: 'PKG_BRONZ_BASLANGIC',
         password: PASSWORD,
+        skip_initial_order: true,
       },
     });
+    const intlFirstOrder = await completePaidOrder({
+      userId: intlFirstOrderId,
+      fullName: 'E2E Uluslararası İlk Bayi',
+      email: `e2e-intl-first-${stamp}@test.local`,
+      packageId: 'PKG_BRONZ_BASLANGIC',
+      countryCode: 'US',
+    });
     record(
-      'Yurt dışı ilk kayıt 3x fiyat ve sabit paket kredisi',
-      intlFirstOrder.status === 201 && intlFirstOrder.json?.transaction?.order_amount === 603 &&
-        intlFirstOrder.json?.transaction?.session_credits_added === 70 && intlFirstOrder.json?.member?.session_credits === 70,
-      `HTTP ${intlFirstOrder.status}; ilk sipariş=$${intlFirstOrder.json?.transaction?.order_amount}, sipariş kredisi=${intlFirstOrder.json?.transaction?.session_credits_added}, bayi bakiyesi=${intlFirstOrder.json?.member?.session_credits}`
+      'Yurt dışı ilk kayıt yalnızca 3D Secure ödeme sonrası 3x paket tutarıyla işlenir',
+      intlRegistration.status === 201 && intlFirstOrder.status === 200 &&
+        intlFirstOrder.json?.transaction?.order_amount === 603 &&
+        intlFirstOrder.json?.transaction?.session_credits_added === 70,
+      `kayıt HTTP ${intlRegistration.status}, sipariş HTTP ${intlFirstOrder.status}; tutar=$${intlFirstOrder.json?.transaction?.order_amount}, kredi=${intlFirstOrder.json?.transaction?.session_credits_added}`
     );
 
     // ---------- Adım 2: Bakiye yükleme (test verisi, export/restore ile) ----------
@@ -400,6 +543,38 @@ async function main() {
     const tokB = await login('B');
     const tokC = await login('C');
     const tokD = await login('D');
+    const memberState = await api('GET', '/api/v1/state', { token: tokB });
+    const ownStateMember = find(memberState.json, ids.B);
+    const stateUplineMember = find(memberState.json, ids.A);
+    record(
+      'State yanıtı 2FA sırlarını ve alt üye kişisel verilerini gizler',
+      memberState.status === 200 && ownStateMember?.two_factor?.secret_key === '' &&
+        ownStateMember?.two_factor?.backup_codes?.length === 0 &&
+        (!stateUplineMember || (!stateUplineMember.tc_identity_no &&
+          stateUplineMember.bank_details?.iban === '' && !stateUplineMember.last_login_ip &&
+          !stateUplineMember.device_fingerprint)),
+      `HTTP ${memberState.status}; 2FA ve alt üye kişisel alanları gizli`
+    );
+    const anonymousPrices = await api('GET', `/api/v1/payments/regional-prices?user_id=${encodeURIComponent(ids.B)}&package_ids=PKG_MINI_DENEME`);
+    const spoofedPrices = await api('GET', `/api/v1/payments/regional-prices?user_id=${encodeURIComponent(ids.A)}&package_ids=PKG_MINI_DENEME`, { token: tokB });
+    const fakeTotpActivation = await api('POST', `/api/v1/members/${ids.B}/2fa`, {
+      token: tokB,
+      body: { enabled: true, verification_code: '123456' },
+    });
+    record(
+      'Paket fiyatları oturum ve hesap kapsamı ister; yapılandırılmamış TOTP etkinleştirilemez',
+      anonymousPrices.status === 401 && spoofedPrices.status === 403 && fakeTotpActivation.status === 501,
+      `anonim fiyat=${anonymousPrices.status}, başka kullanıcı fiyatı=${spoofedPrices.status}, TOTP=${fakeTotpActivation.status}`
+    );
+    const creditIncrease = await api('POST', `/api/v1/members/${ids.B}/sync-credits`, {
+      token: tokB,
+      body: { session_credits: 999999 },
+    });
+    record(
+      'Bayi kendi seans kredisi bakiyesini API ile artıramaz',
+      creditIncrease.status === 403 && creditIncrease.json?.message?.includes('artıramaz'),
+      `HTTP ${creditIncrease.status}`
+    );
 
     // ---------- Adım 3.1: Yurtiçi $100 ----------
     data = await snapshot();
@@ -532,6 +707,30 @@ async function main() {
         r7.json?.transaction?.clawback_status === 'PENDING_14D',
       `HTTP ${earlyRelease.status}, serbest bırakılan=${earlyRelease.json?.released_count}`
     );
+    const underfundedState = await snapshot();
+    const underfundedLog = underfundedState.commissionLogs.find(
+      (log) => log.order_id === r7.json?.transaction?.order_id && log.status === 'PENDING_14D'
+    );
+    const underfundedMember = underfundedState.members.find((m) => m.user_id === underfundedLog?.target_external_id);
+    const pendingKey = underfundedLog?.region === 'INTERNATIONAL' ? 'pending_international_usd' : 'pending_domestic_usd';
+    const releaseWalletKey = underfundedLog?.region === 'INTERNATIONAL' ? 'wallet_international_usd' : 'wallet_domestic_usd';
+    const walletBeforeUnderfundedRelease = underfundedMember?.wallets?.[releaseWalletKey] || 0;
+    if (underfundedMember) underfundedMember.wallets[pendingKey] = 0;
+    await api('POST', '/api/v1/admin/restore-data', { token: adminToken, body: { data: underfundedState } });
+    const underfundedRelease = await api('POST', '/api/v1/admin/cron/release-clawback', {
+      token: adminToken,
+      body: { order_id: r7.json?.transaction?.order_id },
+    });
+    const afterUnderfundedRelease = await snapshot();
+    const unchangedUnderfundedLog = afterUnderfundedRelease.commissionLogs.find((log) => log.id === underfundedLog?.id);
+    const underfundedMemberAfter = afterUnderfundedRelease.members.find((m) => m.user_id === underfundedLog?.target_external_id);
+    record(
+      'Bekleyen bakiye yetersizse komisyon serbest bırakılmaz veya cüzdan artırılmaz',
+      underfundedRelease.status === 200 && underfundedRelease.json?.released_count === 0 &&
+        unchangedUnderfundedLog?.status === 'PENDING_14D' &&
+        (underfundedMemberAfter?.wallets?.[releaseWalletKey] || 0) === walletBeforeUnderfundedRelease,
+      `HTTP ${underfundedRelease.status}, serbest=${underfundedRelease.json?.released_count}, log=${unchangedUnderfundedLog?.status}`
+    );
 
     // ---------- Adım 5: P2P transfer ----------
     data = await snapshot();
@@ -539,6 +738,7 @@ async function main() {
     const aP0 = find(data, ids.A).wallets.wallet_domestic_usd;
     const P2P_AMOUNT = 100; // Sunucu minimum P2P tutarını 100 USD uygular (Math.max(100, ...))
     const r5 = await api('POST', '/api/v1/p2p/transfer', {
+      token: tokB,
       body: { from_user_id: ids.B, to_user_id: ids.A, amount: P2P_AMOUNT, transfer_type: 'WALLET_TO_WALLET' },
     });
     data = await snapshot();
@@ -551,13 +751,26 @@ async function main() {
       `HTTP ${r5.status}; gönderen Δ=${(bP1 - bP0).toFixed(2)}, alıcı Δ=${(aP1 - aP0).toFixed(2)}; kayıt=${Boolean(txRec)}${txRec ? ` (tutar ${txRec.amount})` : ''}`
     );
 
-    const p2pLogs = r5.json?.state?.activity_logs || [];
+    const p2pAuditState = await api('GET', '/api/v1/state', { token: adminToken });
+    const p2pLogs = p2pAuditState.json?.activity_logs || [];
     const logSent = p2pLogs.some((l) => l.action_type === 'P2P_TRANSFER_SENT' && l.user_id === find(data, ids.B).id);
     const logRecv = p2pLogs.some((l) => l.action_type === 'P2P_TRANSFER_RECEIVED' && l.user_id === find(data, ids.A).id);
     record(
       'P2P Transferi activityLogs\'a Yazıldı',
       logSent && logRecv,
       `gönderen log=${logSent}, alıcı log=${logRecv}`
+    );
+    const invalidP2pType = await api('POST', '/api/v1/p2p/transfer', {
+      token: tokB,
+      body: { from_user_id: ids.B, to_user_id: ids.A, amount: 100, transfer_type: 'UNSUPPORTED' },
+    });
+    const anonymousP2p = await api('POST', '/api/v1/p2p/transfer', {
+      body: { from_user_id: ids.B, to_user_id: ids.A, amount: 100, transfer_type: 'WALLET_TO_WALLET' },
+    });
+    record(
+      'P2P geçersiz tür ve oturumsuz istekleri reddeder',
+      invalidP2pType.status === 400 && anonymousP2p.status === 401,
+      `geçersiz tür HTTP ${invalidP2pType.status}, oturumsuz HTTP ${anonymousP2p.status}`
     );
 
     // ---------- Adım 6: Yetkisiz süre uzatma ----------
@@ -910,6 +1123,205 @@ async function main() {
       'Aktif süre varken ikinci alım aylık sınır olmadan kalan süreye +30 gün ekler',
       rStack.status === 200 && near(stackDom, -100) && stackDays > 29.5 && stackDays < 30.5,
       `HTTP ${rStack.status}; expiry Δ=${stackDays.toFixed(2)} gün; dom Δ=${stackDom.toFixed(2)}`
+    );
+
+    // ---------- Adım 11: Yinelenen sipariş bonusları ikinci kez yazmaz ----------
+    const dupSponsorUserId = `E2E-DUP-S-${stamp}`;
+    const dupBuyerUserId = `E2E-DUP-B-${stamp}`;
+    const dupBuyerEmail = `e2e-dup-b-${stamp}@test.local`;
+    await api('POST', '/api/v1/members', {
+      body: {
+        user_id: dupSponsorUserId,
+        full_name: 'E2E Tekrar Sponsor',
+        email: `e2e-dup-s-${stamp}@test.local`,
+        country_code: 'TR',
+        sponsor_id: '',
+        password: PASSWORD,
+        skip_initial_order: true,
+      },
+    });
+    await api('POST', '/api/v1/members', {
+      body: {
+        user_id: dupBuyerUserId,
+        full_name: 'E2E Tekrar Alıcı',
+        email: dupBuyerEmail,
+        country_code: 'TR',
+        sponsor_id: dupSponsorUserId,
+        password: PASSWORD,
+        skip_initial_order: true,
+      },
+    });
+    const dupFirst = await completePaidOrder({
+      userId: dupBuyerUserId,
+      fullName: 'E2E Tekrar Alıcı',
+      email: dupBuyerEmail,
+      packageId: 'PKG_MINI_DENEME',
+      countryCode: 'TR',
+    });
+    const dupOrderId = dupFirst.json?.transaction?.order_id;
+    const dupOrderAmount = dupFirst.json?.transaction?.order_amount;
+    const dupStateOf = (state) => JSON.stringify(
+      [dupSponsorUserId, dupBuyerUserId].map((uid) => find(state, uid)?.wallets)
+    );
+    const dupLogCount = (state) => state.commissionLogs.filter((log) => log.order_id === dupOrderId).length;
+    const dupBefore = await snapshot();
+    const dupWalletsBefore = dupStateOf(dupBefore);
+    const dupLogsBefore = dupLogCount(dupBefore);
+    const dupReplay = await api('POST', '/api/v1/integrations/order-commission', {
+      token: adminToken,
+      body: {
+        user_id: dupBuyerUserId,
+        order_id: dupOrderId,
+        order_amount: dupOrderAmount,
+        package_id: 'PKG_MINI_DENEME',
+        package_items: [{ package_id: 'PKG_MINI_DENEME', quantity: 1 }],
+      },
+    });
+    const dupAfter = await snapshot();
+    record(
+      'Yinelenen sipariş gönderimi cüzdanı ve komisyon loglarını değiştirmez',
+      dupFirst.status === 200 && Boolean(dupOrderId) && dupLogsBefore > 0 &&
+        dupBefore.creditedBonusKeys.some((key) => key.startsWith(`${dupOrderId}|SPONSOR|`)) &&
+        dupReplay.status === 200 && dupReplay.json?.code === 'IDEMPOTENCY_DUPLICATE_ORDER_ID' &&
+        dupStateOf(dupAfter) === dupWalletsBefore &&
+        dupLogCount(dupAfter) === dupLogsBefore &&
+        !dupAfter.commissionLogs.some((log) => log.order_id === dupOrderId && log.status === 'DUPLICATE_SKIPPED'),
+      `ilk sipariş log=${dupLogsBefore}; tekrar HTTP ${dupReplay.status}, code=${dupReplay.json?.code}; cüzdan değişmedi=${dupStateOf(dupAfter) === dupWalletsBefore}; log sonrası=${dupLogCount(dupAfter)}`
+    );
+
+    // ---------- Adım 12: Kariyer havuzu aynı dönemde ikinci kez kredilenmez ----------
+    const poolFirst = await api('POST', '/api/v1/career-pool/distribute', { token: adminToken });
+    const poolMid = await snapshot();
+    const poolWalletsMid = JSON.stringify(poolMid.members.map((m) => m.wallets));
+    const poolFirstTotal = poolFirst.json?.distribution?.total_distributed ?? 0;
+    const poolSecond = await api('POST', '/api/v1/career-pool/distribute', { token: adminToken });
+    const poolAfter = await snapshot();
+    const poolSecondId = poolSecond.json?.distribution?.distribution_id;
+    const poolSkips = poolAfter.commissionLogs.filter(
+      (log) => log.order_id === poolSecondId && log.status === 'DUPLICATE_SKIPPED'
+    ).length;
+    const poolWalletsAfter = JSON.stringify(poolAfter.members.map((m) => m.wallets));
+    record(
+      'Kariyer havuzu aynı dönemde ikinci kez dağıtılmaz ve atlanan krediler denetlenir',
+      poolFirst.status === 200 && poolFirstTotal > 0 &&
+        poolSecond.status === 200 && poolSecond.json?.distribution?.total_distributed === 0 &&
+        poolWalletsAfter === poolWalletsMid && poolSkips > 0,
+      `ilk dağıtım=${poolFirstTotal}; ikinci dağıtım=${poolSecond.json?.distribution?.total_distributed}; atlanan kayıt=${poolSkips}; cüzdanlar değişmedi=${poolWalletsAfter === poolWalletsMid}`
+    );
+
+    // ---------- Adım 13: Manuel kariyer ödemesi batch_id ile idempotent ----------
+    const bBatchId = `E2E-BATCH-${Date.now().toString(36)}`;
+    const bPayload = { target_user_id: ids.B, bonus_amount: 1 };
+    const bNoId = await api('POST', '/api/v1/admin/bonuses/career-payout', { token: adminToken, body: bPayload });
+    const bCpBefore = find(await snapshot(), ids.B).wallets.career_pool_wallet;
+    const bFirst = await api('POST', '/api/v1/admin/bonuses/career-payout', {
+      token: adminToken,
+      body: { ...bPayload, batch_id: bBatchId },
+    });
+    const bMid = find(await snapshot(), ids.B).wallets.career_pool_wallet;
+    const bSecond = await api('POST', '/api/v1/admin/bonuses/career-payout', {
+      token: adminToken,
+      body: { ...bPayload, batch_id: bBatchId },
+    });
+    const bAfter = find(await snapshot(), ids.B).wallets.career_pool_wallet;
+    record(
+      'Manuel bireysel kariyer ödemesi batch_id ile tekrar edilemez',
+      bNoId.status === 400 && bNoId.json?.code === 'BATCH_ID_REQUIRED' &&
+        bFirst.status === 200 && near(bMid - bCpBefore, 1) &&
+        bSecond.status === 409 && bSecond.json?.code === 'BATCH_ALREADY_PAID' && bAfter === bMid,
+      `batch_id yok=${bNoId.status}/${bNoId.json?.code}; ilk=${bFirst.status}; tekrar=${bSecond.status}/${bSecond.json?.code}; bakiye Δ=${(bMid - bCpBefore).toFixed(2)}; tekrar sonrası değişmedi=${bAfter === bMid}`
+    );
+
+    const tBatchId = `E2E-TIER-${Date.now().toString(36)}`;
+    const tPayload = { career_level: 1, bonus_amount: 1, batch_id: tBatchId };
+    const tFirst = await api('POST', '/api/v1/admin/bonuses/career-payout', { token: adminToken, body: tPayload });
+    const tMidWallets = JSON.stringify((await snapshot()).members.map((m) => m.wallets));
+    const tSecond = await api('POST', '/api/v1/admin/bonuses/career-payout', { token: adminToken, body: tPayload });
+    const tAfterWallets = JSON.stringify((await snapshot()).members.map((m) => m.wallets));
+    record(
+      'Tier kariyer ödemesinde tüm adaylar ödenmişse ALL_ELIGIBLE_ALREADY_PAID döner',
+      tFirst.status === 200 && tSecond.status === 409 &&
+        tSecond.json?.code === 'ALL_ELIGIBLE_ALREADY_PAID' && tAfterWallets === tMidWallets,
+      `ilk=${tFirst.status}; tekrar=${tSecond.status}/${tSecond.json?.code}; cüzdanlar değişmedi=${tAfterWallets === tMidWallets}`
+    );
+
+    // ---------- Adım 14: Dinamik kariyer havuzu revizyonu ----------
+    // Adım 12 havuzu boşalttığı için revizyon öncesi yeni bir sipariş ile fon beslenir.
+    const revSponsorId = `E2E-REV-S-${stamp}`;
+    const revBuyerId = `E2E-REV-B-${stamp}`;
+    const revBuyerEmail = `e2e-rev-b-${stamp}@test.local`;
+    await api('POST', '/api/v1/members', {
+      body: {
+        user_id: revSponsorId,
+        full_name: 'E2E Revizyon Sponsor',
+        email: `e2e-rev-s-${stamp}@test.local`,
+        country_code: 'TR',
+        sponsor_id: '',
+        password: PASSWORD,
+        skip_initial_order: true,
+      },
+    });
+    await api('POST', '/api/v1/members', {
+      body: {
+        user_id: revBuyerId,
+        full_name: 'E2E Revizyon Alıcı',
+        email: revBuyerEmail,
+        country_code: 'TR',
+        sponsor_id: revSponsorId,
+        password: PASSWORD,
+        skip_initial_order: true,
+      },
+    });
+    const revFund = await completePaidOrder({
+      userId: revBuyerId,
+      fullName: 'E2E Revizyon Alıcı',
+      email: revBuyerEmail,
+      packageId: 'PKG_MINI_DENEME',
+      countryCode: 'TR',
+    });
+    if (revFund.status !== 200) throw new Error(`REV1 fon siparişi başarısız: ${revFund.status}`);
+    const rvInvalid = await api('POST', '/api/v1/career-pool/distribute', {
+      token: adminToken,
+      body: { revision: 'REV0' },
+    });
+    const rvFirst = await api('POST', '/api/v1/career-pool/distribute', {
+      token: adminToken,
+      body: { revision: 'REV1' },
+    });
+    const rvSecond = await api('POST', '/api/v1/career-pool/distribute', {
+      token: adminToken,
+      body: { revision: 'REV1' },
+    });
+    const rvAfter = await snapshot();
+    const rvSkips = rvAfter.commissionLogs.filter(
+      (log) => log.order_id === rvSecond.json?.distribution?.distribution_id && log.status === 'DUPLICATE_SKIPPED'
+    ).length;
+    record(
+      'Dinamik havuz REV1 revizyonu ayrı dönemde bir kez dağıtılır',
+      rvInvalid.status === 400 && rvInvalid.json?.code === 'INVALID_REVISION' &&
+        rvFirst.status === 200 && rvFirst.json?.distribution?.total_distributed > 0 &&
+        rvSecond.status === 200 && rvSecond.json?.distribution?.total_distributed === 0 && rvSkips > 0,
+      `geçersiz=${rvInvalid.status}/${rvInvalid.json?.code}; REV1 ilk=${rvFirst.json?.distribution?.total_distributed}; REV1 tekrar=${rvSecond.json?.distribution?.total_distributed}; atlanan=${rvSkips}`
+    );
+
+    // ---------- Adım 15: Ödül teslimi tekrar edilemez ----------
+    const rwData = await snapshot();
+    const rwReward = rwData.userRewardsLog.find((r) => !r.is_delivered && r.cash_value > 0);
+    const rwPath = rwReward ? `/api/v1/admin/rewards/${rwReward.id}/deliver` : null;
+    const rwFirst = rwPath ? await api('POST', rwPath, { token: adminToken }) : { status: 0, json: null };
+    const rwOwnerAfterFirst = rwReward
+      ? JSON.stringify((await snapshot()).members.find((m) => m.id === rwReward.user_id)?.wallets)
+      : null;
+    const rwSecond = rwPath ? await api('POST', rwPath, { token: adminToken }) : { status: 0, json: null };
+    const rwOwnerAfterSecond = rwReward
+      ? JSON.stringify((await snapshot()).members.find((m) => m.id === rwReward.user_id)?.wallets)
+      : null;
+    record(
+      'Ödül teslimi cüzdana bir kez işlenir, tekrar teslim REWARD_ALREADY_DELIVERED döner',
+      Boolean(rwReward) && rwFirst.status === 200 &&
+        rwSecond.status === 409 && rwSecond.json?.code === 'REWARD_ALREADY_DELIVERED' &&
+        rwOwnerAfterFirst === rwOwnerAfterSecond,
+      `teslim edilecek ödül=${Boolean(rwReward)}; ilk=${rwFirst.status}; tekrar=${rwSecond.status}/${rwSecond.json?.code}; cüzdan değişmedi=${rwOwnerAfterFirst === rwOwnerAfterSecond}`
     );
 
     // ---------- Sonuç raporu ----------

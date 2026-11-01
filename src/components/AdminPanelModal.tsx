@@ -51,7 +51,7 @@ import {
 import { db, wipeAllLocalApplicationData } from '../lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { DataBackupRestoreModal } from './DataBackupRestoreModal';
-import { loginAdminWithMessage } from '../utils/adminSession';
+import { getAdminToken, loginAdminWithMessage } from '../utils/adminSession';
 import {
   ADMIN_EMAILS,
   ADMIN_PHONE,
@@ -1175,7 +1175,7 @@ const [scanActionMsg, setScanActionMsg] = useState<string | null>(null);
           try {
             await fetch(`/api/v1/admin/members/${matchingMember.uid}`, {
               method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
               body: JSON.stringify({
                 full_name: updatedUser.fullName,
                 sponsor_id: resFormSponsorCode.trim().toUpperCase(),

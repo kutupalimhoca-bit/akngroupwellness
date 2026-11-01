@@ -430,7 +430,7 @@ export const INITIAL_CAREER_TIERS: CareerTier[] = [
     subtitle: 'Başlangıç',
     label: '1. Kariyer',
     minPackageId: 'PKG_MINI_DENEME',
-    minPackageLabel: 'Aktiflik Yenileme Paketi ($100 / $300)',
+    minPackageLabel: 'Aktif olunması yeterlidir',
     minPackageRank: 1,
     minPersonalVolume: 0,
 
@@ -450,7 +450,7 @@ export const INITIAL_CAREER_TIERS: CareerTier[] = [
     fixedCareerBonusAmount: 1000,
     enforceStrictOrganizationRules: true,
     meaning:
-      'Aktiflik Yenileme Paketi ($100 / $300) — Organizasyon şartı yok, 1. Derinlik hak edişi açıktır.',
+      'Aktif olunması yeterlidir — Organizasyon şartı yok, 1. Derinlik hak edişi açıktır.',
   },
   {
     level: 2,
@@ -458,9 +458,9 @@ export const INITIAL_CAREER_TIERS: CareerTier[] = [
     subtitle: 'Kendi Ekibini Kurmaya Başlayan',
     label: '2. Kariyer',
     minPackageId: 'PKG_BRONZ_BASLANGIC',
-    minPackageLabel: 'Toplam $1.000 Alışveriş + Aktiflik',
+    minPackageLabel: 'Aktif olunması yeterlidir',
     minPackageRank: 1,
-    minPersonalVolume: 1000,
+    minPersonalVolume: 0,
 
     minActiveDirects: 10,
     minGroupVolume: 2000,
@@ -478,7 +478,7 @@ export const INITIAL_CAREER_TIERS: CareerTier[] = [
     fixedCareerBonusAmount: 2500,
     enforceStrictOrganizationRules: true,
     meaning:
-      '$1.000 Toplam Alışveriş + Aktiflik + En az 10 Aktif Üye + $2.000 Ekip Cirosu — 2. Derinlik (%6) hak edişi.',
+      'Aktiflik + En az 10 Aktif Üye + $2.000 Ekip Cirosu — 2. Derinlik (%6) hak edişi.',
   },
   {
     level: 3,
@@ -486,9 +486,9 @@ export const INITIAL_CAREER_TIERS: CareerTier[] = [
     subtitle: 'Lider Adayı',
     label: '3. Kariyer',
     minPackageId: 'PKG_GUMUS_STANDART',
-    minPackageLabel: 'Toplam $3.000 Alışveriş + Aktiflik',
+    minPackageLabel: 'Aktif olunması yeterlidir',
     minPackageRank: 2,
-    minPersonalVolume: 3000,
+    minPersonalVolume: 0,
 
     minActiveDirects: 20,
     minGroupVolume: 5000,
@@ -506,7 +506,7 @@ export const INITIAL_CAREER_TIERS: CareerTier[] = [
     fixedCareerBonusAmount: 5000,
     enforceStrictOrganizationRules: true,
     meaning:
-      '$3.000 Toplam Alışveriş + Aktiflik + En az 20 Aktif Üye + $5.000 Ekip Cirosu — 3. Derinlik (%5) hak edişi.',
+      'Aktiflik + En az 20 Aktif Üye + $5.000 Ekip Cirosu — 3. Derinlik (%5) hak edişi.',
   },
   {
     level: 4,
@@ -514,9 +514,9 @@ export const INITIAL_CAREER_TIERS: CareerTier[] = [
     subtitle: 'Takım Lideri',
     label: '4. Kariyer',
     minPackageId: 'PKG_GUMUS_PLUS',
-    minPackageLabel: 'Toplam $7.500 Alışveriş + Aktiflik',
+    minPackageLabel: 'Aktif olunması yeterlidir',
     minPackageRank: 2,
-    minPersonalVolume: 7500,
+    minPersonalVolume: 0,
 
     minActiveDirects: 50,
     minGroupVolume: 10000,
@@ -537,7 +537,7 @@ export const INITIAL_CAREER_TIERS: CareerTier[] = [
     fixedCareerBonusAmount: 10000,
     enforceStrictOrganizationRules: true,
     meaning:
-      '$7.500 Toplam Alışveriş + Aktiflik + En az 50 Aktif Üye + $10.000 Ekip Cirosu + En az 1 "Levvâme" Kol — 4. Derinlik (%4) hak edişi.',
+      'Aktiflik + En az 50 Aktif Üye + $10.000 Ekip Cirosu + En az 1 "Levvâme" Kol — 4. Derinlik (%4) hak edişi.',
   },
   {
     level: 5,
@@ -545,9 +545,9 @@ export const INITIAL_CAREER_TIERS: CareerTier[] = [
     subtitle: 'Organizasyon Yöneticisi',
     label: '5. Kariyer',
     minPackageId: 'PKG_ALTIN_DANISMAN',
-    minPackageLabel: 'Toplam $15.000 Alışveriş + Aktiflik',
+    minPackageLabel: 'Aktif olunması yeterlidir',
     minPackageRank: 3,
-    minPersonalVolume: 15000,
+    minPersonalVolume: 0,
 
     minActiveDirects: 100,
     minGroupVolume: 50000,
@@ -568,7 +568,7 @@ export const INITIAL_CAREER_TIERS: CareerTier[] = [
     fixedCareerBonusAmount: 20000,
     enforceStrictOrganizationRules: true,
     meaning:
-      '$15.000 Toplam Alışveriş + Aktiflik + En az 100 Aktif Üye + $50.000 Ekip Cirosu + Farklı kollarda 2 adet "Mülhime" — 5. Derinlik (%3) hak edişi.',
+      'Aktiflik + En az 100 Aktif Üye + $50.000 Ekip Cirosu + Farklı kollarda 2 adet "Mülhime" — 5. Derinlik (%3) hak edişi.',
   },
   {
     level: 6,
@@ -576,9 +576,9 @@ export const INITIAL_CAREER_TIERS: CareerTier[] = [
     subtitle: 'Üst Seviye Lider',
     label: '6. Kariyer',
     minPackageId: 'PKG_ALTIN_PRO',
-    minPackageLabel: 'Toplam $25.000 Alışveriş + Aktiflik',
+    minPackageLabel: 'Aktif olunması yeterlidir',
     minPackageRank: 3,
-    minPersonalVolume: 25000,
+    minPersonalVolume: 0,
 
     minActiveDirects: 500,
     minGroupVolume: 350000,
@@ -600,7 +600,7 @@ export const INITIAL_CAREER_TIERS: CareerTier[] = [
     fixedCareerBonusAmount: 35000,
     enforceStrictOrganizationRules: true,
     meaning:
-      '$25.000 Toplam Alışveriş + Aktiflik + En az 500 Aktif Üye + $350.000 Ekip Cirosu + Farklı kollarda 2 "Mutmainne" + 1 "Mülhime" — 6. Derinlik (%2) hak edişi.',
+      'Aktiflik + En az 500 Aktif Üye + $350.000 Ekip Cirosu + Farklı kollarda 2 "Mutmainne" + 1 "Mülhime" — 6. Derinlik (%2) hak edişi.',
   },
   {
     level: 7,
@@ -608,9 +608,9 @@ export const INITIAL_CAREER_TIERS: CareerTier[] = [
     subtitle: 'Zirve - Şirket Hissedarı / Sponsoru',
     label: '7. Kariyer',
     minPackageId: 'PKG_PLATIN_KLINIK',
-    minPackageLabel: 'Toplam $50.000 Alışveriş + Aktiflik',
+    minPackageLabel: 'Aktif olunması yeterlidir',
     minPackageRank: 4,
-    minPersonalVolume: 50000,
+    minPersonalVolume: 0,
 
     minActiveDirects: 1000,
     minGroupVolume: 1000000,
@@ -632,7 +632,7 @@ export const INITIAL_CAREER_TIERS: CareerTier[] = [
     fixedCareerBonusAmount: 50000,
     enforceStrictOrganizationRules: true,
     meaning:
-      '$50.000 Toplam Alışveriş + Aktiflik + En az 1000 Aktif Üye + $1.000.000 Ekip Cirosu + Farklı kollarda 2 "Râziye" + 2 "Mutmainne" — 7. Derinlik (%2) + %10 Sistem Fonu Havuz Payı.',
+      'Aktiflik + En az 1000 Aktif Üye + $1.000.000 Ekip Cirosu + Farklı kollarda 2 "Râziye" + 2 "Mutmainne" — 7. Derinlik (%2) + %10 Sistem Fonu Havuz Payı.',
   },
 ];
 
@@ -1308,7 +1308,8 @@ export type CommissionLogStatusType =
   | 'POOL_TRANSFER_NO_SPONSOR'
   | 'POOL_TRANSFER_NO_USER'
   | 'SYSTEM_FUND'
-  | 'FRAUD_REVIEW';
+  | 'FRAUD_REVIEW'
+  | 'DUPLICATE_SKIPPED';
 
 // SQL Table 3: system_wallet (3. SİSTEM ŞİRKET VE DEVİR HAVUZU)
 export interface SystemWalletRecord {
@@ -1330,6 +1331,7 @@ export interface OrderLogRecord {
   merchant_oid?: string;
   transaction_id?: string;
   payment_method?: string;
+  package_items?: { package_id: string; quantity: number }[];
   client_ip?: string;
   created_at: string; // TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 }
@@ -1678,6 +1680,7 @@ export interface OrderCommissionPayload {
   payment_method?: 'CARD_3D' | 'CREDIT_CARD_3D' | 'BANK_EFT' | 'USDT_TRC20' | 'WALLET_BALANCE';
   merchant_oid?: string;
   transaction_id?: string;
+  package_items?: { package_id: string; quantity: number }[];
   client_ip?: string;
   device_fingerprint?: string;
   card_fingerprint?: string;

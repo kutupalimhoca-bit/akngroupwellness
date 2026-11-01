@@ -156,7 +156,7 @@ export const TechnicalReportModal: React.FC<TechnicalReportModalProps> = ({
             </div>
             
             <p className="text-slate-200 leading-relaxed">
-              <strong>AuraBio Frekans;</strong> modern optik foton spektrometresi, Kirlian biyo-plazma modellemesi, <strong>Aura-Sync Akıllı Saat Canlı Biyometrik Köprüsü (Web BLE)</strong>, <strong>MindSpace Studio (Aura-Journal, Circadian, Voice Forge, Dream Decoder, Group Sync)</strong>, <strong>AI Kutsal Geometri Mandala Üreticisi</strong>, <strong>7 Günlük AI Bütünsel Arınma Kampları</strong>, <strong>Anonim Küresel Huzur Isı Haritası</strong>, <strong>50+ Hastalık Şifa Ansiklopedisi</strong>, <strong>10s Ön/Son Biyo-Akustik Tarama Motoru</strong>, <strong>8 Sekmeli Entegre Raporlama</strong> ve <strong>{TOTAL_HEALING_COUNT}+ Kadim Şifa Frekansını</strong> tek bir dijital platformda birleştiren yeni nesil Kuantum Biyo-Rezonans ve Frekans Terapi Sistemidir. Özel elektrot veya hantal donanıma ihtiyaç duymadan standart kamera, mikrofon ve Bluetooth cihazlar üzerinden canlı tarama ve Web Audio ses sentezi gerçekleştirir.
+              <strong>AuraBio Frekans;</strong> modern optik foton spektrometresi, Kirlian biyo-plazma modellemesi, <strong>Aura-Sync Akıllı Saat Canlı Biyometrik Köprüsü (Web BLE)</strong>, <strong>MindSpace Studio (Aura-Journal, Circadian, Voice Forge, Dream Decoder, Group Sync)</strong>, <strong>AI Kutsal Geometri Mandala Üreticisi</strong>, <strong>7 Günlük AI Bütünsel Arınma Kampları</strong>, <strong>Anonim Küresel Huzur Isı Haritası</strong>, <strong>50+ Hastalık Şifa Ansiklopedisi</strong>, <strong>10s Ön/Son Biyo-Akustik Tarama Motoru</strong>, <strong>Entegre Klinik Raporlama</strong> ve <strong>{TOTAL_HEALING_COUNT}+ Kadim Şifa Frekansını</strong> tek bir dijital platformda birleştiren yeni nesil Kuantum Biyo-Rezonans ve Frekans Terapi Sistemidir. Özel elektrot veya hantal donanıma ihtiyaç duymadan standart kamera, mikrofon ve Bluetooth cihazlar üzerinden canlı tarama ve Web Audio ses sentezi gerçekleştirir.
             </p>
           </div>
 
@@ -283,7 +283,7 @@ export const TechnicalReportModal: React.FC<TechnicalReportModalProps> = ({
               <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-1.5">
                 <div className="font-bold text-indigo-300 text-xs flex items-center gap-1.5">
                   <Repeat className="w-4 h-4 text-indigo-400" />
-                  <span>12. 📊 8 Sekmeli Rapor &amp; Karşılaştırma</span>
+                  <span>12. 📊 Rapor &amp; Karşılaştırma</span>
                 </div>
                 <p className="text-xs text-slate-400">
                   İlim Kapı, Genel Bakış, Duygular, Katmanlar, Çakralar, Letaifler, Reçeteler ve İnovasyonlar. Yüklenen şifa frekansının otomatik teyidi ve PDF/Word dışa aktarımı.

@@ -1,0 +1,16 @@
+warning: in the working copy of 'firebase.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'functions/index.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'server.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/AdminConsoleView.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/AdminPanelModal.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/CommissionEngineView.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/DataBackupRestoreModal.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/DealerBackOfficeView.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/MonolineMlmPortalModal.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/PaymentModal.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/types/monoline.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/utils/authManager.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/utils/dealerOrderManager.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/utils/monolineSyncBridge.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/utils/paymentProcessor.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/utils/resellerManager.ts', LF will be replaced by CRLF the next time Git touches it

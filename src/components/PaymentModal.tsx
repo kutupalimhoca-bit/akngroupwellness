@@ -46,6 +46,7 @@ import {
   defaultPaymentProcessor,
   fetchRegionalPackagePrices,
   recordUserContractApprovals,
+  recordPaidOrderCommission,
   SANDBOX_TEST_CARDS,
   SANDBOX_TEST_CARD_CVV,
   SANDBOX_TEST_CARD_EXPIRY,
@@ -328,6 +329,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         packageItems
       );
 
+      await recordPaidOrderCommission({
+        userId: user.uid,
+        orderId,
+        amount: totalCartPrice,
+        packageItems,
+        payment: posCharge,
+      });
+
       const activeItems = cartItems.map((item) => {
         const pkg = allAvailablePackages.find((p) => p.id === item.packageId);
         return {
@@ -360,7 +369,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         paymentMethod: '3D Secure Sanal POS (Kredi Kartı)',
         referenceNumber: posCharge.transaction_id,
         items: activeItems,
-      });
+      }, undefined, { settledByServer: true });
       if (!orderRecorded) throw new Error(`Ödeme alındı ancak sipariş kaydedilemedi. İşlem numarası: ${posCharge.transaction_id}`);
 
       setPosSuccessReceipt({

@@ -117,7 +117,7 @@ export function downloadTechnicalReportWord(): void {
     </div>
 
     <div class="highlight-box">
-      <strong>YÖNETİCİ ÖZETİ (v6.0 Enterprise):</strong> AuraBio Frekans; modern optik foton spektrometresi, <strong>3D Biyo-Aura &amp; Çakra Simülatörü</strong>, <strong>Aura-Sync Akıllı Saat Biyometrik Canlı Köprüsü (Web BLE)</strong>, <strong>MindSpace Studio (Aura-Journal, Circadian, Voice Forge, Dream Decoder, Group Sync)</strong>, <strong>AI Kutsal Geometri Mandala Üreticisi</strong>, <strong>7 Günlük Bütünsel Arınma Kampları</strong>, <strong>Anonim Küresel Frekans Haritası</strong>, <strong>50+ Hastalık Şifa Ansiklopedisi</strong>, <strong>10s Ön/Son Vokal Biyo-Akustik Tarama Motoru</strong>, <strong>8 Sekmeli Entegre Biyo-Rezonans Raporlama</strong>, Doğu-Batı sentezi <strong>${TOTAL_HEALING_COUNT}+ Kadim Şifa Frekansı</strong> ve küresel tek hatlı <strong>Monoline 7 Nefis Mertebesi MLM &amp; 15 Kredi Havuzu Paketi</strong> mimarisini tek bir dijital platformda birleştiren yeni nesil Kuantum Biyo-Rezonans ve Gelir Ortaklığı Ekosistemidir.
+      <strong>YÖNETİCİ ÖZETİ (v6.0 Enterprise):</strong> AuraBio Frekans; modern optik foton spektrometresi, <strong>3D Biyo-Aura &amp; Çakra Simülatörü</strong>, <strong>Aura-Sync Akıllı Saat Biyometrik Canlı Köprüsü (Web BLE)</strong>, <strong>MindSpace Studio (Aura-Journal, Circadian, Voice Forge, Dream Decoder, Group Sync)</strong>, <strong>AI Kutsal Geometri Mandala Üreticisi</strong>, <strong>7 Günlük Bütünsel Arınma Kampları</strong>, <strong>Anonim Küresel Frekans Haritası</strong>, <strong>50+ Hastalık Şifa Ansiklopedisi</strong>, <strong>10s Ön/Son Vokal Biyo-Akustik Tarama Motoru</strong>, <strong>Entegre Biyo-Rezonans Raporlama</strong>, Doğu-Batı sentezi <strong>${TOTAL_HEALING_COUNT}+ Kadim Şifa Frekansı</strong> ve küresel tek hatlı <strong>Monoline 7 Nefis Mertebesi MLM &amp; 14 Kredi Havuzu Paketi</strong> mimarisini tek bir dijital platformda birleştiren yeni nesil Kuantum Biyo-Rezonans ve Gelir Ortaklığı Ekosistemidir.
     </div>
 
     <h2>1. TEMEL SİSTEM ÖZELLİKLERİ VE BİYO-REZONANS TEKNOLOJİLERİ (v6.0 Enterprise)</h2>
@@ -134,7 +134,7 @@ export function downloadTechnicalReportWord(): void {
       <li><strong>🧭 7 Günlük Bütünsel Arınma Kampları (Holistic Journey):</strong> Kökten Taç çakraya kadar Sabah (Uyanış), Öğle (Hizalanma) ve Gece (Hücresel Detoks) mikro seanslarıyla yapılandırılmış program ve bulut ilerleme sistemi.</li>
       <li><strong>🌍 Anonim Küresel Frekans Haritası (Heatmap):</strong> Dünya genelinde o anda aktif olan biyo-rezonans seanslarını, baskın küresel niyet dalgasını ve kıtasal enerji dağılımını canlı görselleştirme.</li>
       <li><strong>🌿 Şifa Ansiklopedisi &amp; 50+ Hastalık Frekans Matrisi:</strong> Nörolojik, kardiyovasküler, metabolik, psikosomatik, iskelet-kas, bağışıklık ve kadim enerjetik alanlarda 50'den fazla hastalığın Solfejyo, Rife ve Sufi makam frekans reçeteleri ve 3 aşamalı iyileşme takvimleri.</li>
-      <li><strong>📊 8 Sekmeli Entegre Raporlama &amp; Dönüşüm Karşılaştırması:</strong> İlim Kapı, Genel Bakış, Duygular, Aura Katmanları, Çakralar, Letaifler, Kişisel Reçeteler ve Tüm İnovasyonlar sekmeleri. Yüklenen şifa frekansının otomatik rapora işlenmesi ve PDF/Word dışa aktarımı.</li>
+      <li><strong>📊 Entegre Raporlama &amp; Dönüşüm Karşılaştırması:</strong> İlim Kapı, Genel Bakış, Duygular, Aura Katmanları, Çakralar, Letaifler, Kişisel Reçeteler ve Tüm İnovasyonlar sekmeleri. Yüklenen şifa frekansının otomatik rapora işlenmesi ve PDF/Word dışa aktarımı.</li>
       <li><strong>Evrensel 6'lı Kadim Şifa Kütüphanesi (${TOTAL_HEALING_COUNT}+ Frekans):</strong> İslami Esma &amp; Şifa Sureleri, Uzak Doğu 7 Çakra &amp; Solfejyo Matrisi, 5 Kadim Element &amp; Schumann Rezonansı, Anadolu Sufi Mûsikîsi 25 Makam Terapisi, Şamanik Davul Teta Transı ve Keltik-İskandinav Rün Akustiği.</li>
     </ul>
 
@@ -380,7 +380,7 @@ export function downloadTechnicalReportPDF(): void {
   
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'normal');
-  doc.text(clean('Resmi Is Sunum Raporu, Biyo-Rezonans Mimarisi, 15 Bayi Paketi ve Gelir Modeli'), margin + 5, y + 16);
+  doc.text(clean('Resmi Is Sunum Raporu, Biyo-Rezonans Mimarisi, 14 Bayi Paketi ve Gelir Modeli'), margin + 5, y + 16);
   doc.text(clean(`Surum: v6.0 • Tarih: ${new Date().toLocaleDateString('tr-TR')}`), pageWidth - margin - 52, y + 16);
 
   y += 30;
@@ -401,7 +401,7 @@ export function downloadTechnicalReportPDF(): void {
   doc.setFontSize(8.2);
   doc.setFont('helvetica', 'normal');
   const summaryText = clean(
-    `AuraBio Frekans; canli optik foton spektrometresi, 3D Biyo-Aura Simulatoru, 10s On/Son Vokal Biyo-Akustik Tarama, Aura-Sync Akilli Saat Koprusu (Web BLE), MindSpace Studio, Kutsal Geometri Mandala Ureticisi, 7 Gunluk Arinma Kamplari, 50+ Hastalik Sifa Ansiklopedisi, 8 Sekmeli Raporlama, ${TOTAL_HEALING_COUNT}+ Kadim Sifa Frekansi ve Kuresel Tek Hatli Monoline 7 Nefis MLM (%20 Direkt Sponsor + %25 7 Derinlik Tek Hat + %50 Kariyer Havuzu) gelir ortakligini tek bir platformda birlestiren yeni nesil sistemdir.`
+    `AuraBio Frekans; canli optik foton spektrometresi, 3D Biyo-Aura Simulatoru, 10s On/Son Vokal Biyo-Akustik Tarama, Aura-Sync Akilli Saat Koprusu (Web BLE), MindSpace Studio, Kutsal Geometri Mandala Ureticisi, 7 Gunluk Arinma Kamplari, 50+ Hastalik Sifa Ansiklopedisi, ${TOTAL_HEALING_COUNT}+ Kadim Sifa Frekansi ve Kuresel Tek Hatli Monoline 7 Nefis MLM (%20 Direkt Sponsor + %25 7 Derinlik Tek Hat + %50 Kariyer Havuzu) gelir ortakligini tek bir platformda birlestiren yeni nesil sistemdir.`
   );
   doc.text(doc.splitTextToSize(summaryText, pageWidth - 2 * margin - 8), margin + 4, y + 5);
   y += 33;
@@ -414,7 +414,7 @@ export function downloadTechnicalReportPDF(): void {
   y += 5;
 
   const mlmItems = [
-    '1. Danisan Seans Kari: 15 kredi paketinde $1.21-$3.16 birim maliyet ile $30-$70 seans uygulamasi.',
+    '1. Danisan Seans Kari: 14 kredi paketinde $1.21-$3.16 birim maliyet ile $30-$70 seans uygulamasi.',
     '2. %20 Direkt Sponsor Primi: Referans kodunuzla kaydolan uyelerin her paket alimindan aninda %20 nakit komisyon.',
     '3. %25 Monoline Kuresel Tek Hat Primi: Ust 7 siraya %7, %5, %4, %3, %2, %2, %2 oraninda otomatik dagitim.',
     '4. %5 Sistem/Kariyer Fonu & Bonuslar: Nefs-i Emmare -> Nefs-i Kamile 7 mertebe havuz payi (%2-%15) ve anlik cuzdana bonus.',

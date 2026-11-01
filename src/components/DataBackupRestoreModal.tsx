@@ -17,6 +17,7 @@ import {
 import { getLocalMembersDirectory } from '../utils/authManager';
 import { getLocalResellers, getLocalCommissions } from '../utils/resellerManager';
 import { getLocalDigitalInvoices } from '../utils/invoiceManager';
+import { getAdminToken } from '../utils/adminSession';
 
 interface DataBackupRestoreModalProps {
   isOpen: boolean;
@@ -85,7 +86,9 @@ export const DataBackupRestoreModal: React.FC<DataBackupRestoreModalProps> = ({
       // Fetch server data if available
       let serverData: any = null;
       try {
-        const sRes = await fetch('/api/v1/admin/export-data');
+        const sRes = await fetch('/api/v1/admin/export-data', {
+          headers: { Authorization: `Bearer ${getAdminToken() || ''}` },
+        });
         if (sRes.ok) {
           const sJson = await sRes.json();
           serverData = sJson.data;
@@ -251,7 +254,7 @@ export const DataBackupRestoreModal: React.FC<DataBackupRestoreModalProps> = ({
       try {
         await fetch('/api/v1/admin/restore-data', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` },
           body: JSON.stringify({ data: serverPayload }),
         });
       } catch (srvErr) {

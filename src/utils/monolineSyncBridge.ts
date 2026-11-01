@@ -1,5 +1,6 @@
 import { collection, doc, getDocs, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { getAdminToken } from './adminSession';
 import { getMemberRegionalPendingUsd, getMemberRegionalUsdBalance } from './walletRegion';
 import {
   CommissionTransaction as MonolineCommissionTx,
@@ -191,15 +192,15 @@ let inFlightSync: Promise<SystemStateResponse | null> | null = null;
  * (Firestore + LocalStorage) with the Monoline 7 Nefis Mertebesi MLM & Commission Engine,
  * and writes back calculated careers & commissions to Frekans records.
  */
-export async function syncFrekansWithMonolineEngine(options?: {
-  resetBeforeSync?: boolean;
-}): Promise<SystemStateResponse | null> {
-  if (inFlightSync && !options?.resetBeforeSync) {
+export async function syncFrekansWithMonolineEngine(): Promise<SystemStateResponse | null> {
+  if (inFlightSync) {
     return inFlightSync;
   }
 
   const runSync = async (): Promise<SystemStateResponse | null> => {
     try {
+      const token = getAdminToken();
+      if (!token) return null;
       const [allUsers, allResellers, dealerOrders, memberOrders] = await Promise.all([
         adminGetAllMembers(),
         getAllResellers(),
@@ -407,11 +408,10 @@ export async function syncFrekansWithMonolineEngine(options?: {
         }
       >();
 
-      const usersWithExplicitOrder = new Set<string>();
       const purchasedCreditsByUser = new Map<string, number>();
 
       dealerOrders.forEach((dOrder: DealerPackageOrder) => {
-        if (!dOrder || !dOrder.id || dOrder.status === 'rejected') return;
+        if (!dOrder || !dOrder.id || dOrder.status !== 'approved') return;
         if (LEGACY_DEMO_USER_IDS.has(dOrder.resellerId)) return;
         const amt = Number(dOrder.price);
         if (isNaN(amt) || amt <= 0) return;
@@ -433,8 +433,6 @@ export async function syncFrekansWithMonolineEngine(options?: {
         }
 
         if (!canonicalUserId) return;
-        usersWithExplicitOrder.add(canonicalUserId);
-        if (cleanEmail) usersWithExplicitOrder.add(cleanEmail);
 
         const mappedPkg = mapFrekansPkgToMonolinePkgId(dOrder.packageId, amt);
         const orderCredits = Number(
@@ -459,8 +457,7 @@ export async function syncFrekansWithMonolineEngine(options?: {
       });
 
       memberOrders.forEach((mOrder: MemberOrder) => {
-        if (!mOrder || !mOrder.id) return;
-        if (mOrder.paymentStatus === 'DEMO' || mOrder.paymentStatus === 'REJECTED') return;
+        if (!mOrder || !mOrder.id || mOrder.paymentStatus !== 'PAID') return;
         if (LEGACY_DEMO_USER_IDS.has(mOrder.userId)) return;
         const amt = Number(mOrder.amount);
         if (isNaN(amt) || amt <= 0) return;
@@ -472,8 +469,6 @@ export async function syncFrekansWithMonolineEngine(options?: {
             : mOrder.userId;
 
         if (!canonicalUserId) return;
-        usersWithExplicitOrder.add(canonicalUserId);
-        if (cleanEmail) usersWithExplicitOrder.add(cleanEmail);
 
         unifiedOrdersMap.set(mOrder.id, {
           order_id: mOrder.id,
@@ -486,47 +481,6 @@ export async function syncFrekansWithMonolineEngine(options?: {
         });
       });
 
-      // Also check if any registered member/dealer in Frekans has a paid package on their profile
-      // that wasn't recorded as a separate order document yet
-      allUsers.forEach((u: UserMember) => {
-        if (!u || !u.uid || LEGACY_DEMO_USER_IDS.has(u.uid)) return;
-        const cleanEmail = (u.email || '').trim().toLowerCase();
-        if (cleanEmail && LEGACY_DEMO_EMAILS.has(cleanEmail)) return;
-        const canonicalUid =
-          cleanEmail && emailToUidMap.has(cleanEmail)
-            ? emailToUidMap.get(cleanEmail)!
-            : u.uid;
-
-        if (
-          usersWithExplicitOrder.has(canonicalUid) ||
-          (cleanEmail && usersWithExplicitOrder.has(cleanEmail))
-        ) {
-          return;
-        }
-        if (u.uid === 'ADMIN-AKN-01' || u.role === 'admin') return;
-
-        const rawPkg = u.dealerPackageId || u.selectedPackage || '';
-        if (!rawPkg || rawPkg.includes('demo') || u.paymentStatus === 'DEMO' || u.paymentStatus === 'REJECTED') {
-          return;
-        }
-
-        if (u.paymentStatus === 'PAID' || u.dealerStatus === 'approved' || u.role === 'dealer') {
-          const monolinePkg = mapFrekansPkgToMonolinePkgId(rawPkg);
-          const pkgDef = PACKAGES[monolinePkg];
-          if (pkgDef && pkgDef.defaultPrice > 0) {
-            const synthOrderId = `ORD-KAYIT-${canonicalUid}`;
-            unifiedOrdersMap.set(synthOrderId, {
-              order_id: synthOrderId,
-              user_id: canonicalUid,
-              user_name: u.fullName || 'Bayi',
-              user_email: cleanEmail,
-              order_amount: pkgDef.defaultPrice,
-              package_id: monolinePkg,
-              timestamp: u.createdAt || new Date().toISOString(),
-            });
-          }
-        }
-      });
 
       // Prevent & heal any credit balance that was inflated on previous page refreshes
       for (const [uid, mem] of unifiedMembersMap.entries()) {
@@ -548,11 +502,10 @@ export async function syncFrekansWithMonolineEngine(options?: {
 
       const res = await fetch('/api/v1/integrations/sync-frekans-data', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           members: Array.from(unifiedMembersMap.values()),
           orders: Array.from(unifiedOrdersMap.values()),
-          resetBeforeSync: Boolean(options?.resetBeforeSync),
         }),
       });
 
@@ -1107,7 +1060,7 @@ export async function registerMonolineMemberToFrekans(
       selectedPackage: frekansPkgId,
       dealerPackageId: frekansPkgId,
       creditsBalance: member.session_credits,
-      paymentStatus: 'PAID',
+      paymentStatus: 'PENDING',
       resellerId: member.sponsor_id || '',
       referredByCode: sponsorRefCode,
       referralCode: member.ref_code,

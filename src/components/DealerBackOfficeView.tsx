@@ -137,7 +137,7 @@ interface DealerBackOfficeViewProps {
     userId: string,
     data: { current_password: string; email: string; new_password?: string }
   ) => Promise<boolean>;
-  onToggle2FA: (userId: string, enabled: boolean, code: string) => Promise<void>;
+
   onRenewActivityPackage?: (
     userId: string,
     packageId: Exclude<PackageId, 'CUSTOM'>
@@ -233,7 +233,6 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
   onReleasePendingBalance,
   onUpdateProfile,
   onUpdateCredentials,
-  onToggle2FA,
   onRenewActivityPackage,
   onRegisterReferralMember,
   isSubmitting,
@@ -1364,9 +1363,11 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
     setWalletOpsBusy(true);
     setWalletOpsFeedback(null);
     try {
+      const token = getMemberWalletToken();
+      if (!token) throw new Error('Güvenli bayi oturumu yok; yeniden giriş yapın.');
       const res = await fetch('/api/v1/p2p/transfer', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           from_user_id: member.user_id,
           to_user_id: targetId,
@@ -1497,7 +1498,7 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
   const [editPreferredMethod, setEditPreferredMethod] = useState<'IBAN' | 'TRC20'>(
     member?.bank_details?.preferred_method || 'IBAN'
   );
-  const [totpCode, setTotpCode] = useState<string>('482910');
+
 
   // Sync local profile form when member changes
   React.useEffect(() => {
@@ -1573,6 +1574,7 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
     );
   }
 
+  const withdrawalTaxRate = member.has_tax_company ? 0 : 0.2;
   const baseOrigin =
     typeof window !== 'undefined' ? window.location.origin : 'https://monoline.app';
   const referralUrl =
@@ -1608,9 +1610,10 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
       return;
     }
 
-    if (wantsTaxRefund && !invoiceDataUrl) {
+    const requestTaxRefund = withdrawalTaxRate > 0 && wantsTaxRefund;
+    if (requestTaxRefund && !invoiceDataUrl) {
       setWithdrawComplianceError(
-        'Vergi İadesi (%20) talebi seçtiniz: Lütfen aşağıdaki "Cihazdan Fatura Dosyası Yükle" alanından kestiğiniz faturayı (PDF veya Görsel) seçiniz veya faturasız çekim için kutucuğu kaldırınız.'
+        'Vergi iadesi talep ettiniz: Lütfen fatura dosyanızı yükleyin veya faturasız çekim için kutucuğu kaldırın.'
       );
       return;
     }
@@ -1622,15 +1625,15 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
       holder_name: member.full_name,
       bank_name: customBankName || member.bank_details?.bank_name || 'Banka Hesabı',
       iban: customIban || member.bank_details?.iban || '',
-      wants_tax_refund: wantsTaxRefund,
+      wants_tax_refund: requestTaxRefund,
       invoice_number: invoiceNo || `FAT-${Date.now().toString().slice(-6)}`,
       tax_id_or_tckn: taxOfficeAndId || member.tc_identity_no || member.city,
-      invoice_file_name: wantsTaxRefund ? invoiceFileName : undefined,
-      invoice_file_type: wantsTaxRefund ? invoiceFileType : undefined,
-      invoice_file_size: wantsTaxRefund ? invoiceFileSize : undefined,
-      invoice_file_data_url: wantsTaxRefund ? invoiceDataUrl : undefined,
+      invoice_file_name: requestTaxRefund ? invoiceFileName : undefined,
+      invoice_file_type: requestTaxRefund ? invoiceFileType : undefined,
+      invoice_file_size: requestTaxRefund ? invoiceFileSize : undefined,
+      invoice_file_data_url: requestTaxRefund ? invoiceDataUrl : undefined,
     });
-    if (wantsTaxRefund) {
+    if (requestTaxRefund) {
       setInvoiceFileName('');
       setInvoiceDataUrl('');
       setInvoiceNo('');
@@ -3281,41 +3284,45 @@ export const DealerBackOfficeView: React.FC<DealerBackOfficeViewProps> = ({
                   </strong>
                 </div>
                 <div className="flex items-center justify-between text-amber-300">
-                  <span>%20 Vergi Kesintisi (Sistem Fonuna Aktarılır):</span>
+                  <span>%{withdrawalTaxRate * 100} Stopaj (Sistem Fonuna Aktarılır):</span>
                   <strong>
-                    -{(withdrawAmount * 0.2).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD
+                    -{(withdrawAmount * withdrawalTaxRate).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD
                   </strong>
                 </div>
                 <div className="flex items-center justify-between pt-2 border-t border-white/15 text-emerald-300 text-sm">
-                  <span>Bankaya Yatacak Net Tutar (%80):</span>
+                  <span>Bankaya Yatacak Net Tutar (%{100 - withdrawalTaxRate * 100}):</span>
                   <strong className="font-extrabold">
-                    {(withdrawAmount * 0.8).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD
+                    {(withdrawAmount * (1 - withdrawalTaxRate)).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD
                   </strong>
                 </div>
               </div>
 
               {/* %20 VERGİ İADESİ TALEBİ & CİHAZDAN FATURA YÜKLEME ALANI */}
               <div className="p-4 rounded-xl bg-teal-50/80 border-2 border-teal-300 space-y-3 text-xs">
-                <label className="flex items-start gap-2.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={wantsTaxRefund}
-                    onChange={(e) => setWantsTaxRefund(e.target.checked)}
-                    className="mt-0.5 rounded border-teal-500 text-teal-700"
-                  />
-                  <div>
-                    <div className="font-extrabold text-teal-950">
-                      🧾 %20 Vergi İadesi İstiyorum (+
-                      {(withdrawAmount * 0.2).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}{' '}
-                      USD İade İçin Fatura Yükle)
+                {withdrawalTaxRate > 0 ? (
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={wantsTaxRefund}
+                      onChange={(e) => setWantsTaxRefund(e.target.checked)}
+                      className="mt-0.5 rounded border-teal-500 text-teal-700"
+                    />
+                    <div>
+                      <div className="font-extrabold text-teal-950">
+                        🧾 %{withdrawalTaxRate * 100} Vergi İadesi İstiyorum (+
+                        {(withdrawAmount * withdrawalTaxRate).toLocaleString('en-US', { minimumFractionDigits: 2 })}{' '}
+                        USD İade İçin Fatura Yükle)
+                      </div>
+                      <p className="text-[11px] text-teal-800 mt-0.5">
+                        Faturanız yönetici onayına iletilir; onaylanırsa kesilen vergi tutarı hesabınıza aktarılır.
+                      </p>
                     </div>
-                    <p className="text-[11px] text-teal-800 mt-0.5">
-                      Fatura keserek cihazınızdan yüklediğinizde faturanız Yönetici Vergi İadesi Panelinde görünür ve onaylandığında kesilen %20 vergi tutarı hesabınıza geri aktarılır.
-                    </p>
-                  </div>
-                </label>
+                  </label>
+                ) : (
+                  <p className="font-semibold text-teal-950">Şirket mükellefiyeti nedeniyle bu çekimde %0 stopaj uygulanır; vergi iadesi faturası gerekmez.</p>
+                )}
 
-                {wantsTaxRefund && (
+                {withdrawalTaxRate > 0 && wantsTaxRefund && (
                   <div className="space-y-3 pt-2 border-t border-teal-200">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       <div>
@@ -3502,16 +3509,16 @@ Paket Alarak Aktifliği Yenile →
                         <th className="py-2 pr-2">Talep ID</th>
                         <th className="py-2 px-2">Hedef TR IBAN</th>
                         <th className="py-2 px-2 text-right">Brüt Tutar</th>
-                        <th className="py-2 px-2 text-right">%20 Vergi (Fon)</th>
-                        <th className="py-2 px-2 text-right">Net (%80)</th>
-                        <th className="py-2 px-2">%20 Vergi İadesi &amp; Fatura</th>
+                        <th className="py-2 px-2 text-right">Stopaj (Fon)</th>
+                        <th className="py-2 px-2 text-right">Net Tutar</th>
+                        <th className="py-2 px-2">Vergi İadesi &amp; Fatura</th>
                         <th className="py-2 pl-2 text-right">Çekim Durumu</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 font-mono tabular-nums">
                       {memberWithdrawals.map((w) => {
                         const gross = w.gross_amount ?? w.amount;
-                        const tax = w.tax_deduction ?? Math.round(gross * 0.2 * 100) / 100;
+                        const tax = w.tax_deduction ?? Math.round(gross * ((w.tax_rate_percent ?? (w.has_tax_company ? 0 : 20)) / 100) * 100) / 100;
                         const net = w.net_amount ?? Math.round((gross - tax) * 100) / 100;
                         return (
                           <tr key={w.id}>
@@ -3544,7 +3551,8 @@ Paket Alarak Aktifliği Yenile →
                                   ⏳ Fatura Onayda ({w.invoice_no || 'Yüklendi'})
                                 </span>
                               )}
-                              {(!w.tax_refund_status ||
+                              {tax <= 0 && <span className="text-slate-500">Vergi kesintisi yok</span>}
+                              {tax > 0 && (!w.tax_refund_status ||
                                 w.tax_refund_status === 'NONE' ||
                                 w.tax_refund_status === 'REJECTED') && (
                                 <button
@@ -3576,7 +3584,7 @@ Paket Alarak Aktifliği Yenile →
               )}
 
               {/* MEVCUT ÇEKİM TALEBİ İÇİN SONRADAN CİHAZDAN FATURA YÜKLEME KUTUSU */}
-              <form
+              {!member.has_tax_company && <form
                 onSubmit={handleStandaloneInvoiceUpload}
                 className="p-4 rounded-xl bg-teal-50/70 border border-teal-200 space-y-3 text-xs"
               >
@@ -3626,7 +3634,7 @@ Paket Alarak Aktifliği Yenile →
                     ? 'Fatura Yükleniyor...'
                     : '🧾 Seçilen Faturayı Cihazdan Yükle & %20 Vergi İadesi Talep Et'}
                 </button>
-              </form>
+              </form>}
             </div>
 
             {/* Member's Incoming Commission Logs (SQL: commission_logs) */}
@@ -4837,63 +4845,8 @@ Paket Alarak Aktifliği Yenile →
               </span>
             </div>
 
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Resmi Banka TR IBAN çekim işlemlerinde maksimum güvenlik için Google Authenticator
-              veya Authy uygulamanızla 2FA doğrulamasını yönetin.
-            </p>
-
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-              <div className="text-xs text-slate-500">TOTP Kurulum Anahtarı (Secret Key):</div>
-              <div className="font-mono text-xs font-bold text-slate-900 bg-white p-2.5 rounded border border-slate-200">
-                {member.two_factor?.secret_key || 'JBSWY3DPEHPK3P1'}
-              </div>
-
-              <div className="text-xs text-slate-500 pt-1">Yedek Kurtarma Kodları:</div>
-              <div className="grid grid-cols-2 gap-2 font-mono text-xs text-slate-700">
-                {(member.two_factor?.backup_codes || ['NF-1-A1', 'NF-1-B2', 'NF-1-C3', 'NF-1-D4']).map((code) => (
-                  <div key={code} className="bg-white px-2.5 py-1.5 rounded border border-slate-200">
-                    {code}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-3 pt-2">
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  6 Haneli Authenticator Doğrulama Kodu
-                </label>
-                <input
-                  type="text"
-                  maxLength={6}
-                  value={totpCode}
-                  onChange={(e) => setTotpCode(e.target.value)}
-                  placeholder="482910"
-                  className="w-full px-3 py-2 text-sm font-mono tracking-widest bg-slate-50 border border-slate-300 rounded-lg"
-                />
-              </div>
-
-              <div className="flex gap-3">
-                {!member.two_factor?.enabled ? (
-                  <button
-                    type="button"
-                    disabled={isSubmitting}
-                    onClick={() => onToggle2FA(member.user_id, true, totpCode)}
-                    className="w-full py-2.5 px-4 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer"
-                  >
-                    2FA Doğrula ve Etkinleştir
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={isSubmitting}
-                    onClick={() => onToggle2FA(member.user_id, false, totpCode)}
-                    className="w-full py-2.5 px-4 bg-slate-200 hover:bg-slate-300 text-slate-900 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
-                  >
-                    2FA Korumasını Devre Dışı Bırak
-                  </button>
-                )}
-              </div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-950">
+              Sunucuda TOTP kurulumu ve kod doğrulaması yapılandırılmadığından 2FA etkin değildir. Güvenlik anahtarı veya yedek kod bu ekranda gösterilmez.
             </div>
           </section>
           )}
